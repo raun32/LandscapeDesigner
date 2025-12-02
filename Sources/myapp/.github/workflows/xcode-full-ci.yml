@@ -14,17 +14,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Display Xcode version
+      - name: Show Xcode version
         run: xcodebuild -version
+
+      - name: List available schemes
+        run: xcodebuild -list -project 
+LandscapeDesigner.xcodeproj
 
       - name: Build and test iOS
         run: |
+          # Use the first available iPhone simulator 
+automatically
+          SIM=$(xcrun simctl list devices available | grep 
+-m1 "iPhone" | awk -F '[()]' '{print $2}')
+          echo "Using simulator: $SIM"
           xcodebuild \
             -project LandscapeDesigner.xcodeproj \
             -scheme LandscapeDesigner \
             -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,name=iPhone 
-14,OS=17.0' \
+            -destination "id=$SIM" \
             CODE_SIGNING_ALLOWED=NO \
             build test
 
@@ -35,7 +43,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Display Xcode version
+      - name: Show Xcode version
         run: xcodebuild -version
 
       - name: Build and test macOS
@@ -46,3 +54,4 @@ jobs:
             -sdk macosx \
             CODE_SIGNING_ALLOWED=NO \
             build test
+
