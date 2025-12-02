@@ -1,0 +1,42 @@
+name: CI — Build & Test iOS + macOS
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  ios-build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Swift
+        uses: fwal/setup-swift@v1
+        with:
+          swift-version: '5.9'
+
+      - name: Build iOS executable
+        run: swift build --disable-sandbox
+
+      - name: Run iOS tests
+        run: swift test --disable-sandbox
+
+  macos-build:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Swift
+        uses: fwal/setup-swift@v1
+        with:
+          swift-version: '5.9'
+
+      - name: Build macOS executable
+        run: swift build --disable-sandbox
+
+      - name: Run macOS tests
+        run: swift test --disable-sandbox
