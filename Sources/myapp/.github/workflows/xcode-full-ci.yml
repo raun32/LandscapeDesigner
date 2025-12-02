@@ -1,0 +1,48 @@
+name: Xcode CI — Build & Test iOS + macOS
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  ios:
+    name: Build & Test iOS
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Display Xcode version
+        run: xcodebuild -version
+
+      - name: Build and test iOS
+        run: |
+          xcodebuild \
+            -project LandscapeDesigner.xcodeproj \
+            -scheme LandscapeDesigner \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 
+14,OS=17.0' \
+            CODE_SIGNING_ALLOWED=NO \
+            build test
+
+  macos:
+    name: Build & Test macOS
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Display Xcode version
+        run: xcodebuild -version
+
+      - name: Build and test macOS
+        run: |
+          xcodebuild \
+            -project LandscapeDesigner.xcodeproj \
+            -scheme LandscapeDesigner \
+            -sdk macosx \
+            CODE_SIGNING_ALLOWED=NO \
+            build test
