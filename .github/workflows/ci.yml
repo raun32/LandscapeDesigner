@@ -1,4 +1,4 @@
-name: CI — Build & Test (No Signing)
+name: CI — Build & Test
 
 on:
   push:
@@ -7,57 +7,46 @@ on:
     branches: [ main ]
 
 jobs:
-  build-and-test:
+  ios:
+    name: Build & Test iOS
     runs-on: macos-latest
-    env:
-      # Prevent xcode/xcodebuild from trying to sign when building for simulator
-      CODE_SIGNING_ALLOWED: "NO"
-      CODE_SIGNING_REQUIRED: "NO"
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Resolve Swift packages if Package.swift exists
-        if: ${{ always() && (hashFiles('**/Package.swift') != '') }}
-        run: swift package resolve
+      - name: Show Xcode version
+        run: xcodebuild -version
 
-      - name: Show available simulators (info)
-        run: xcrun simctl list devices
+      - name: List available schemes
+        run: xcodebuild -list -project LandscapeDesigner.xcodeproj
 
-      - name: Build (iOS Simulator)
+      - name: Build and test iOS
         run: |
+          SIM=$(xcrun simctl list devices available | grep -m1 "iPhone" | awk -F '[()]' '{print $2}')
+          echo "Using simulator: $SIM"
           xcodebuild \
             -project LandscapeDesigner.xcodeproj \
-            -scheme "LandscapeDesigner" \
+            -scheme LandscapeDesigner \
             -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,name=iPhone 15' \
-            -resultBundlePath build/ios-result.xcresult \
-            clean build \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+            -destination "id=$SIM" \
+            CODE_SIGNING_ALLOWED=NO \
+            build test
 
-      - name: Test (iOS Simulator)
+  macos:
+    name: Build & Test macOS
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build and test macOS
         run: |
           xcodebuild \
             -project LandscapeDesigner.xcodeproj \
-            -scheme "LandscapeDesigner" \
-            -sdk iphonesimulator \
-            -destination 'platform=iOS Simulator,name=iPhone 15' \
-            -resultBundlePath build/ios-test.xcresult \
-            clean test \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
-
-      - name: Build macOS (if applicable)
-        run: |
-          xcodebuild \
-            -project LandscapeDesigner.xcodeproj \
-            -scheme "LandscapeDesigner" \
-            -destination 'platform=macOS' \
-            -resultBundlePath build/macos-result.xcresult \
-            clean build \
-            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
-
-      - name: Upload xcresult artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: xcresults
-          path: build/*.xcresult
+            -scheme LandscapeDesigner \
+            -sdk macosx \
+            CODE_SIGNING_ALLOWED=NO \
+            build test

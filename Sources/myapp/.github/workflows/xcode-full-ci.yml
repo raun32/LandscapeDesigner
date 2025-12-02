@@ -18,15 +18,12 @@ jobs:
         run: xcodebuild -version
 
       - name: List available schemes
-        run: xcodebuild -list -project 
-LandscapeDesigner.xcodeproj
+        run: xcodebuild -list -project LandscapeDesigner.xcodeproj
 
       - name: Build and test iOS
         run: |
-          # Use the first available iPhone simulator 
-automatically
-          SIM=$(xcrun simctl list devices available | grep 
--m1 "iPhone" | awk -F '[()]' '{print $2}')
+          # Use the first available iPhone simulator automatically
+          SIM=$(xcrun simctl list devices available | grep -m1 "iPhone" | awk -F '[()]' '{print $2}')
           echo "Using simulator: $SIM"
           xcodebuild \
             -project LandscapeDesigner.xcodeproj \
