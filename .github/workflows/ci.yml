@@ -36,3 +36,20 @@ jobs:
           ls -la LandscapeDesigner/Shared/
           ls -la LandscapeDesigner/Shared/Models/
           ls -la LandscapeDesigner/Shared/Views/
+
+      - name: Lint Swift files (check imports)
+        run: |
+          echo "Checking Swift imports and dependencies..."
+          for file in $(find LandscapeDesigner/Shared -name "*.swift"); do
+            echo "Checking: $file"
+            grep -E "^import|^@" "$file" | head -5 || echo "  (no imports)"
+          done
+
+      - name: Count lines of code
+        run: |
+          echo "Code statistics:"
+          echo "Swift files: $(find LandscapeDesigner/Shared -name "*.swift" | wc -l)"
+          echo "Total lines: $(find LandscapeDesigner/Shared -name "*.swift" -exec wc -l {} + | tail -1)"
+          echo ""
+          echo "Breakdown by file:"
+          find LandscapeDesigner/Shared -name "*.swift" -exec wc -l {} +
