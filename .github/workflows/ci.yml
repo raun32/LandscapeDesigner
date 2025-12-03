@@ -48,7 +48,7 @@ jobs:
           chmod +x LandscapeDesigner.app/Contents/MacOS/LandscapeDesigner
           
           # Create Info.plist
-          cat > LandscapeDesigner.app/Contents/Info.plist << 'PLIST'
+          cat > LandscapeDesigner.app/Contents/Info.plist << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -75,7 +75,7 @@ jobs:
               <string>Copyright © 2025 raun32. All rights reserved.</string>
           </dict>
           </plist>
-          PLIST
+          EOF
           
           echo "✅ App bundle created"
 
