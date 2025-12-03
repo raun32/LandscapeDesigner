@@ -82,17 +82,36 @@ jobs:
       - name: Create DMG Installer
         run: |
           echo "💿 Creating DMG installer..."
-          mkdir -p DMG_Contents
-          cp -r LandscapeDesigner.app DMG_Contents/
-          ln -s /Applications DMG_Contents/Applications
           
+          # Clean up any existing DMG
+          rm -f LandscapeDesigner.dmg
+          
+          # Create DMG contents directory
+          rm -rf DMG_Contents
+          mkdir -p DMG_Contents
+          
+          # Copy app bundle
+          cp -r LandscapeDesigner.app DMG_Contents/
+          
+          # Create Applications symlink
+          ln -s /Applications DMG_Contents/Applications 2>/dev/null || true
+          
+          # Create the DMG with explicit parameters
           hdiutil create -volname "Landscape Designer" \
                          -srcfolder DMG_Contents \
                          -ov -format UDZO \
-                         LandscapeDesigner.dmg
+                         -fs HFS+ \
+                         LandscapeDesigner.dmg 2>&1
           
-          echo "✅ DMG created"
-          ls -lh LandscapeDesigner.dmg
+          # Verify DMG was created
+          if [ -f LandscapeDesigner.dmg ]; then
+            echo "✅ DMG created successfully"
+            ls -lh LandscapeDesigner.dmg
+            file LandscapeDesigner.dmg
+          else
+            echo "❌ DMG creation failed"
+            exit 1
+          fi
 
       - name: Upload Binary Artifact
         uses: actions/upload-artifact@v4
