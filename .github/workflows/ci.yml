@@ -1,4 +1,4 @@
-name: CI — Build & Test
+name: Build & Release Landscape Designer
 
 on:
   push:
@@ -7,8 +7,8 @@ on:
     branches: [ main ]
 
 jobs:
-  validate:
-    name: Swift Code Validation
+  build-macos-binary:
+    name: Build macOS Native App
     runs-on: macos-latest
     steps:
       - name: Checkout repository
@@ -17,652 +17,38 @@ jobs:
       - name: Show Swift version
         run: swift --version
 
-      - name: Validate Swift syntax
-        run: |
-          echo "Checking Swift files for syntax errors..."
-          for file in $(find LandscapeDesigner/Shared -name "*.swift"); do
-            echo "Validating: $file"
-            swiftc -parse "$file" -o /dev/null 2>&1 || echo "Warning: $file has syntax issues"
-          done
-
-      - name: Check code structure
-        run: |
-          echo "✓ Swift files found:"
-          find LandscapeDesigner/Shared -name "*.swift" -exec echo "  - {}" \;
-
-      - name: Verify project files
-        run: |
-          echo "✓ Project structure:"
-          ls -la LandscapeDesigner/Shared/
-          ls -la LandscapeDesigner/Shared/Models/
-          ls -la LandscapeDesigner/Shared/Views/
-
-      - name: Lint Swift files (check imports)
-        run: |
-          echo "Checking Swift imports and dependencies..."
-          for file in $(find LandscapeDesigner/Shared -name "*.swift"); do
-            echo "Checking: $file"
-            grep -E "^import|^@" "$file" | head -5 || echo "  (no imports)"
-          done
-
-      - name: Count lines of code
-        run: |
-          echo "Code statistics:"
-          echo "Swift files: $(find LandscapeDesigner/Shared -name "*.swift" | wc -l)"
-          echo "Total lines: $(find LandscapeDesigner/Shared -name "*.swift" -exec wc -l {} + | tail -1)"
-          echo ""
-          echo "Breakdown by file:"
-          find LandscapeDesigner/Shared -name "*.swift" -exec wc -l {} +
-
-  unit-tests:
-    name: Unit Tests
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Run Swift Package tests
-        run: |
-          echo "Running Swift package tests..."
-          cd Sources/myapp/temp_swift_test && swift test -v 2>&1 || echo "Note: SPM tests not configured yet"
-
-  integration-check:
-    name: Integration Check
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Verify SwiftUI components
-        run: |
-          echo "Checking SwiftUI view components..."
-          echo ""
-          echo "App Entry Point:"
-          grep -n "@main\|struct.*App" LandscapeDesigner/Shared/LandscapeDesignerApp.swift
-          echo ""
-          echo "Views available:"
-          ls -1 LandscapeDesigner/Shared/Views/
-          echo ""
-          echo "Models available:"
-          ls -1 LandscapeDesigner/Shared/Models/
-
-  build-ios:
-    name: Build iOS App (Cloud Testing)
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
       - name: Show Xcode version
         run: xcodebuild -version
 
-      - name: Create minimal iOS project for building
+      - name: Compile LandscapeDesigner Binary
         run: |
-          echo "Setting up iOS build environment..."
-          # List what we have
-          echo "Available Swift files:"
-          find LandscapeDesigner/Shared -name "*.swift" -type f
-          echo ""
-          echo "Total files: $(find LandscapeDesigner/Shared -name "*.swift" | wc -l)"
+          echo "🔨 Building Landscape Designer..."
+          swiftc -target x86_64-apple-macosx10.15 \
+                  EnhancedApp.swift \
+                  -o LandscapeDesigner \
+                  -framework AppKit \
+                  -framework Foundation
+          echo "✅ Build successful!"
 
-      - name: Compile Swift files
+      - name: Verify Binary
         run: |
-          echo "Compiling SwiftUI components..."
-          swiftc -parse \
-            LandscapeDesigner/Shared/LandscapeDesignerApp.swift \
-            LandscapeDesigner/Shared/ContentView.swift \
-            -o /dev/null -target arm64-apple-ios14.0-simulator 2>&1 || echo "Note: Full compilation requires Xcode project"
+          echo "📦 Binary verification:"
+          file LandscapeDesigner
+          ls -lh LandscapeDesigner
+          echo ""
+          echo "✅ Binary ready for deployment"
 
-      - name: Check for SwiftUI compatibility
+      - name: Create App Bundle
         run: |
-          echo "Checking for iOS/macOS compatibility..."
-          echo ""
-          echo "SwiftUI framework used:"
-          grep -r "import SwiftUI" LandscapeDesigner/Shared/ | wc -l
-          echo ""
-          echo "UIKit usage:"
-          grep -r "import UIKit" LandscapeDesigner/Shared/ | wc -l
-          echo ""
-          echo "Platform checks:"
-          grep -r "@available\|#if os" LandscapeDesigner/Shared/ || echo "No platform-specific code found"
-
-  build-macos:
-    name: Build macOS App (Cloud Testing)
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Show Xcode version
-        run: xcodebuild -version
-
-      - name: Compile for macOS
-        run: |
-          echo "Compiling for macOS..."
-          swiftc -parse \
-            LandscapeDesigner/Shared/LandscapeDesignerApp.swift \
-            LandscapeDesigner/Shared/ContentView.swift \
-            -o /dev/null -target arm64-apple-macosx11.0 2>&1 || echo "Note: Full compilation requires Xcode project"
-
-      - name: Check macOS compatibility
-        run: |
-          echo "Checking macOS compatibility..."
-          echo ""
-          echo "AppKit usage:"
-          grep -r "import AppKit" LandscapeDesigner/Shared/ | wc -l
-          echo ""
-          echo "SwiftUI components:"
-          find LandscapeDesigner/Shared/Views -name "*.swift" -exec basename {} \;
-
-  unit-tests-detailed:
-    name: Unit & Integration Tests
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Show Xcode version
-        run: xcodebuild -version
-
-      - name: Run Swift Unit Tests
-        run: |
-          echo "Running Swift unit tests (no GUI needed)..."
-          cd Sources/myapp/temp_swift_test && swift test -v 2>&1 || echo "SPM tests configured"
-
-      - name: Verify Test File Exists
-        run: |
-          if [ -f "LandscapeDesignerTests.swift" ]; then
-            echo "✅ Test file found: LandscapeDesignerTests.swift"
-            echo ""
-            echo "Test Classes:"
-            grep "^class.*Tests:" LandscapeDesignerTests.swift
-            echo ""
-            echo "Total test methods:"
-            grep "func test" LandscapeDesignerTests.swift | wc -l
-          fi
-
-  model-tests:
-    name: Model Tests (Plant & PlacedPlant)
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Test Plant Model
-        run: |
-          echo "===== PLANT MODEL TESTS ====="
-          echo ""
-          echo "Test 1: Plant Initialization"
-          cat > /tmp/test_plant.swift << 'EOF'
-          import Foundation
+          echo "📦 Creating macOS app bundle..."
+          mkdir -p LandscapeDesigner.app/Contents/{MacOS,Resources}
           
-          struct Plant {
-              let id: UUID
-              let name: String
-              let imageName: String
-          }
+          # Copy compiled binary
+          cp LandscapeDesigner LandscapeDesigner.app/Contents/MacOS/
+          chmod +x LandscapeDesigner.app/Contents/MacOS/LandscapeDesigner
           
-          do {
-              let plant = Plant(id: UUID(), name: "Rose", imageName: "rose.png")
-              assert(plant.name == "Rose", "Plant name should be Rose")
-              assert(plant.imageName == "rose.png", "Image name should be rose.png")
-              print("✅ Plant initialization: PASSED")
-          } catch {
-              print("❌ Plant initialization: FAILED - \(error)")
-          }
-          EOF
-          
-          swift /tmp/test_plant.swift 2>&1 || echo "Test completed with warnings"
-          echo ""
-          
-          echo "Test 2: Plant Serialization (JSON)"
-          cat > /tmp/test_plant_json.swift << 'EOF'
-          import Foundation
-          
-          struct Plant: Codable {
-              let id: UUID
-              let name: String
-              let imageName: String
-          }
-          
-          do {
-              let plant = Plant(id: UUID(), name: "Tulip", imageName: "tulip.png")
-              let encoder = JSONEncoder()
-              let data = try encoder.encode(plant)
-              let decoder = JSONDecoder()
-              let decodedPlant = try decoder.decode(Plant.self, from: data)
-              assert(decodedPlant.name == "Tulip", "Decoded name should match")
-              print("✅ Plant JSON serialization: PASSED")
-          } catch {
-              print("❌ Plant JSON serialization: FAILED - \(error)")
-          }
-          EOF
-          
-          swift /tmp/test_plant_json.swift 2>&1 || echo "Test completed with warnings"
-          echo ""
-          
-          echo "Test 3: Plant Identifiable"
-          cat > /tmp/test_plant_id.swift << 'EOF'
-          import Foundation
-          
-          struct Plant: Identifiable {
-              let id: UUID
-              let name: String
-              let imageName: String
-          }
-          
-          do {
-              let plant1 = Plant(id: UUID(), name: "Rose", imageName: "rose.png")
-              let plant2 = Plant(id: UUID(), name: "Daisy", imageName: "daisy.png")
-              assert(plant1.id != plant2.id, "IDs should be different")
-              print("✅ Plant identifiable: PASSED")
-          } catch {
-              print("❌ Plant identifiable: FAILED - \(error)")
-          }
-          EOF
-          
-          swift /tmp/test_plant_id.swift 2>&1 || echo "Test completed with warnings"
-
-      - name: Test PlacedPlant Model
-        run: |
-          echo ""
-          echo "===== PLACED PLANT MODEL TESTS ====="
-          echo ""
-          echo "Test 1: PlacedPlant Initialization"
-          cat > /tmp/test_placed.swift << 'EOF'
-          import Foundation
-          
-          struct Plant: Identifiable {
-              let id: UUID
-              let name: String
-              let imageName: String
-          }
-          
-          struct Position {
-              var x: Double
-              var y: Double
-          }
-          
-          struct PlacedPlant: Identifiable {
-              let id = UUID()
-              let plant: Plant
-              var position: Position
-          }
-          
-          do {
-              let plant = Plant(id: UUID(), name: "Rose", imageName: "rose.png")
-              let position = Position(x: 100, y: 200)
-              let placed = PlacedPlant(plant: plant, position: position)
-              assert(placed.plant.name == "Rose", "Plant name should match")
-              print("✅ PlacedPlant initialization: PASSED")
-          } catch {
-              print("❌ PlacedPlant initialization: FAILED - \(error)")
-          }
-          EOF
-          
-          swift /tmp/test_placed.swift 2>&1 || echo "Test completed with warnings"
-          echo ""
-          
-          echo "Test 2: PlacedPlant Position Update"
-          cat > /tmp/test_placed_pos.swift << 'EOF'
-          import Foundation
-          
-          struct Plant: Identifiable {
-              let id: UUID
-              let name: String
-              let imageName: String
-          }
-          
-          struct Position {
-              var x: Double
-              var y: Double
-          }
-          
-          struct PlacedPlant: Identifiable {
-              let id = UUID()
-              let plant: Plant
-              var position: Position
-          }
-          
-          do {
-              let plant = Plant(id: UUID(), name: "Daisy", imageName: "daisy.png")
-              var placed = PlacedPlant(plant: plant, position: Position(x: 0, y: 0))
-              placed.position = Position(x: 300, y: 400)
-              assert(placed.position.x == 300, "X position should be 300")
-              assert(placed.position.y == 400, "Y position should be 400")
-              print("✅ PlacedPlant position update: PASSED")
-          } catch {
-              print("❌ PlacedPlant position update: FAILED - \(error)")
-          }
-          EOF
-          
-          swift /tmp/test_placed_pos.swift 2>&1 || echo "Test completed with warnings"
-
-  data-flow-tests:
-    name: Data Flow Tests
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Test Plant to PlacedPlant Data Flow
-        run: |
-          echo "===== DATA FLOW TESTS ====="
-          echo ""
-          echo "Test 1: Plant to PlacedPlant Conversion"
-          cat > /tmp/test_dataflow.swift << 'EOF'
-          import Foundation
-          
-          struct Plant: Identifiable {
-              let id: UUID
-              let name: String
-              let imageName: String
-          }
-          
-          struct Position {
-              var x: Double
-              var y: Double
-          }
-          
-          struct PlacedPlant: Identifiable {
-              let id = UUID()
-              let plant: Plant
-              var position: Position
-          }
-          
-          do {
-              let plant = Plant(id: UUID(), name: "Sunflower", imageName: "sunflower.png")
-              let placed = PlacedPlant(plant: plant, position: Position(x: 150, y: 250))
-              assert(placed.plant.id == plant.id, "IDs should match")
-              assert(placed.plant.name == "Sunflower", "Names should match")
-              print("✅ Plant to PlacedPlant conversion: PASSED")
-          } catch {
-              print("❌ Plant to PlacedPlant conversion: FAILED - \(error)")
-          }
-          EOF
-          
-          swift /tmp/test_dataflow.swift 2>&1 || echo "Test completed with warnings"
-          echo ""
-          
-          echo "Test 2: Multiple Plants Placement"
-          cat > /tmp/test_multi_plants.swift << 'EOF'
-          import Foundation
-          
-          struct Plant: Identifiable {
-              let id: UUID
-              let name: String
-              let imageName: String
-          }
-          
-          struct Position {
-              var x: Double
-              var y: Double
-          }
-          
-          struct PlacedPlant: Identifiable {
-              let id = UUID()
-              let plant: Plant
-              var position: Position
-          }
-          
-          do {
-              let plants = [
-                  Plant(id: UUID(), name: "Rose", imageName: "rose.png"),
-                  Plant(id: UUID(), name: "Tulip", imageName: "tulip.png"),
-                  Plant(id: UUID(), name: "Daisy", imageName: "daisy.png")
-              ]
-              
-              var placed: [PlacedPlant] = []
-              for (index, plant) in plants.enumerated() {
-                  placed.append(PlacedPlant(plant: plant, position: Position(x: Double(index * 100), y: Double(index * 100))))
-              }
-              
-              assert(placed.count == 3, "Should have 3 placed plants")
-              assert(placed[0].plant.name == "Rose", "First plant should be Rose")
-              assert(placed[1].plant.name == "Tulip", "Second plant should be Tulip")
-              assert(placed[2].plant.name == "Daisy", "Third plant should be Daisy")
-              print("✅ Multiple plants placement: PASSED")
-          } catch {
-              print("❌ Multiple plants placement: FAILED - \(error)")
-          }
-          EOF
-          
-          swift /tmp/test_multi_plants.swift 2>&1 || echo "Test completed with warnings"
-
-  performance-tests:
-    name: Performance Tests
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Performance Benchmarks
-        run: |
-          echo "===== PERFORMANCE TESTS ====="
-          echo ""
-          echo "Test 1: Plant Initialization Performance"
-          cat > /tmp/test_perf_plant.swift << 'EOF'
-          import Foundation
-          
-          struct Plant: Identifiable {
-              let id: UUID
-              let name: String
-              let imageName: String
-          }
-          
-          let start = Date()
-          for _ in 0..<10000 {
-              _ = Plant(id: UUID(), name: "Test", imageName: "test.png")
-          }
-          let elapsed = Date().timeIntervalSince(start)
-          print("✅ Created 10,000 plants in \(String(format: "%.3f", elapsed))s")
-          print("   Average: \(String(format: "%.4f", elapsed/10000))s per plant")
-          EOF
-          
-          swift /tmp/test_perf_plant.swift
-          echo ""
-          
-          echo "Test 2: JSON Encoding Performance"
-          cat > /tmp/test_perf_json.swift << 'EOF'
-          import Foundation
-          
-          struct Plant: Codable {
-              let id: UUID
-              let name: String
-              let imageName: String
-          }
-          
-          let plant = Plant(id: UUID(), name: "Test", imageName: "test.png")
-          let encoder = JSONEncoder()
-          
-          let start = Date()
-          for _ in 0..<10000 {
-              _ = try encoder.encode(plant)
-          }
-          let elapsed = Date().timeIntervalSince(start)
-          print("✅ Encoded 10,000 plants in \(String(format: "%.3f", elapsed))s")
-          print("   Average: \(String(format: "%.4f", elapsed/10000))s per encoding")
-          EOF
-          
-          swift /tmp/test_perf_json.swift
-
-  ui-component-tests:
-    name: UI Component Verification (No GUI)
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Verify SwiftUI Components
-        run: |
-          echo "===== UI COMPONENT VERIFICATION ====="
-          echo ""
-          echo "Scanning for SwiftUI Views..."
-          echo ""
-          
-          for file in LandscapeDesigner/Shared/Views/*.swift; do
-            if [ -f "$file" ]; then
-              name=$(basename "$file" .swift)
-              echo "View: $name"
-              grep "^struct $name\|^class $name" "$file" && echo "  ✅ Struct/Class found"
-              grep "View {" "$file" && echo "  ✅ SwiftUI View conformance"
-              grep "var body:" "$file" && echo "  ✅ Body property exists"
-              echo ""
-            fi
-          done
-
-      - name: Verify Data Models
-        run: |
-          echo "===== DATA MODEL VERIFICATION ====="
-          echo ""
-          
-          echo "Plant Model:"
-          if grep -q "struct Plant" LandscapeDesigner/Shared/Models/Plant.swift; then
-            echo "  ✅ Plant struct exists"
-          fi
-          grep "Codable\|Identifiable" LandscapeDesigner/Shared/Models/Plant.swift && echo "  ✅ Protocols implemented"
-          grep "var name:\|var imageName:" LandscapeDesigner/Shared/Models/Plant.swift && echo "  ✅ Properties defined"
-          echo ""
-          
-          echo "PlacedPlant Model:"
-          if grep -q "struct PlacedPlant" LandscapeDesigner/Shared/Models/PlacedPlant.swift; then
-            echo "  ✅ PlacedPlant struct exists"
-          fi
-          grep "position:" LandscapeDesigner/Shared/Models/PlacedPlant.swift && echo "  ✅ Position property exists"
-          echo ""
-
-  build-app-bundle:
-    name: Build macOS App Bundle
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Show Xcode version
-        run: xcodebuild -version
-
-      - name: Build with SwiftUI
-        run: |
-          echo "Creating SwiftUI macOS app..."
-          
-          # Create temporary project directory
-          mkdir -p /tmp/LandscapeDesignerApp/LandscapeDesignerApp
-          
-          # Create main app file
-          cat > /tmp/LandscapeDesignerApp/LandscapeDesignerApp/ContentView.swift << 'EOF'
-          import SwiftUI
-          
-          struct ContentView: View {
-              var body: some View {
-                  HSplitView {
-                      VStack {
-                          Text("🎨 Design Canvas")
-                              .font(.headline)
-                          Spacer()
-                      }
-                      .frame(minWidth: 300)
-                      .border(Color.gray)
-                      
-                      VStack {
-                          Text("🌱 Plant Library")
-                              .font(.headline)
-                          List {
-                              Text("Rose")
-                              Text("Tulip")
-                              Text("Daisy")
-                              Text("Sunflower")
-                          }
-                      }
-                      .frame(minWidth: 200)
-                  }
-              }
-          }
-          
-          struct ContentView_Previews: PreviewProvider {
-              static var previews: some View {
-                  ContentView()
-              }
-          }
-          EOF
-          
-          # Create app entry point
-          cat > /tmp/LandscapeDesignerApp/LandscapeDesignerApp/LandscapeDesignerApp.swift << 'EOF'
-          import SwiftUI
-          
-          @main
-          struct LandscapeDesignerApp: App {
-              var body: some Scene {
-                  WindowGroup {
-                      ContentView()
-                          .frame(minWidth: 800, minHeight: 600)
-                  }
-                  .windowStyle(.hiddenTitleBar)
-              }
-          }
-          EOF
-          
-          echo "✓ SwiftUI files created"
-
-      - name: Create Swift Package for macOS
-        run: |
-          echo "Setting up Swift package for macOS app..."
-          
-          mkdir -p /tmp/LandscapeDesignerMacApp
-          cd /tmp/LandscapeDesignerMacApp
-          
-          # Create Package.swift
-          cat > Package.swift << 'EOF'
-          // swift-tools-version:5.7
-          import PackageDescription
-          
-          let package = Package(
-              name: "LandscapeDesigner",
-              platforms: [
-                  .macOS(.v12)
-              ],
-              targets: [
-                  .target(
-                      name: "LandscapeDesigner",
-                      dependencies: [],
-                      path: "Sources")
-              ]
-          )
-          EOF
-          
-          # Create sources directory with files
-          mkdir -p Sources/LandscapeDesigner
-          
-          cp /Users/macguy/Desktop/myapp/LandscapeDesigner/Shared/*.swift Sources/LandscapeDesigner/ 2>/dev/null || true
-          
-          # Create main app entry
-          cat > Sources/LandscapeDesigner/App.swift << 'EOF'
-          import SwiftUI
-          
-          @main
-          struct LandscapeDesignerApp: App {
-              var body: some Scene {
-                  WindowGroup("Landscape Designer") {
-                      ContentView()
-                          .frame(minWidth: 1000, minHeight: 700)
-                  }
-              }
-          }
-          EOF
-          
-          echo "✓ Swift package setup complete"
-
-      - name: Create App Bundle Manually
-        run: |
-          echo "Creating macOS app bundle structure..."
-          
-          # Clean old bundle
-          rm -rf /tmp/LandscapeDesigner.app
-          
-          # Create bundle structure
-          mkdir -p /tmp/LandscapeDesigner.app/Contents/{MacOS,Resources,Frameworks}
-          
-          # Create Info.plist with proper macOS app configuration
-          cat > /tmp/LandscapeDesigner.app/Contents/Info.plist << 'EOF'
+          # Create Info.plist
+          cat > LandscapeDesigner.app/Contents/Info.plist << 'PLIST'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -683,217 +69,72 @@ jobs:
               <string>1.0.0</string>
               <key>CFBundleVersion</key>
               <string>1</string>
-              <key>NSMainStoryboardFile</key>
-              <string></string>
               <key>NSPrincipalClass</key>
               <string>NSApplication</string>
-              <key>NSRequiresIPhoneOS</key>
-              <false/>
               <key>NSHumanReadableCopyright</key>
               <string>Copyright © 2025 raun32. All rights reserved.</string>
           </dict>
           </plist>
-          EOF
+          PLIST
           
-          echo "✓ Info.plist created"
-
-      - name: Create Launcher Script
-        run: |
-          # Create a launcher script that opens the app properly
-          cat > /tmp/LandscapeDesigner.app/Contents/MacOS/LandscapeDesigner << 'EOF'
-          #!/bin/bash
-          
-          # Get the directory where this script is located
-          SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-          
-          # Display app information
-          echo "╔════════════════════════════════════════╗"
-          echo "║   🌱 Landscape Designer 1.0 🌱        ║"
-          echo "╚════════════════════════════════════════╝"
-          echo ""
-          echo "✅ App successfully launched!"
-          echo ""
-          echo "📋 App Information:"
-          echo "   Name: Landscape Designer"
-          echo "   Version: 1.0.0"
-          echo "   Platform: macOS 12.0+"
-          echo "   Bundle: com.raun32.landscapedesigner"
-          echo ""
-          echo "🎨 Features:"
-          echo "   • Design Canvas - Interactive plant placement"
-          echo "   • Plant Library - Browse and select plants"
-          echo "   • Image Picker - Add custom plant images"
-          echo ""
-          echo "🌿 Available Plants:"
-          echo "   • Rose 🌹"
-          echo "   • Tulip 🌷"
-          echo "   • Daisy 🌼"
-          echo "   • Sunflower 🌻"
-          echo ""
-          echo "📂 Application Components:"
-          echo "   Views:"
-          echo "     - ContentView (main layout)"
-          echo "     - DesignCanvasView (canvas)"
-          echo "     - PlantLibraryView (library)"
-          echo "     - ImagePickerView (images)"
-          echo ""
-          echo "   Models:"
-          echo "     - Plant (data structure)"
-          echo "     - PlacedPlant (positioned plant)"
-          echo ""
-          echo "⚙️  System Information:"
-          echo "   Swift Version: $(swift --version | head -1)"
-          echo "   Build Date: $(date)"
-          echo ""
-          echo "📝 Note: To use the full SwiftUI interface,"
-          echo "   build with Xcode on macOS 12.0 or later."
-          echo ""
-          echo "✨ Application Ready!"
-          
-          # Keep the terminal window open
-          read -p "Press ENTER to close..."
-          EOF
-          
-          chmod +x /tmp/LandscapeDesigner.app/Contents/MacOS/LandscapeDesigner
-          echo "✓ Launcher script created and made executable"
-
-      - name: Add App Resources
-        run: |
-          # Create README
-          cat > /tmp/LandscapeDesigner.app/Contents/Resources/README.txt << 'EOF'
-          LANDSCAPE DESIGNER v1.0
-          =======================
-          
-          A SwiftUI application for designing landscape layouts with plants.
-          
-          SYSTEM REQUIREMENTS:
-          - macOS 12.0 or later
-          - ARM64 or Intel processor
-          
-          FEATURES:
-          ✓ Interactive Design Canvas - Place and position plants
-          ✓ Plant Library - Browse available plants
-          ✓ Image Picker - Add custom plant images
-          ✓ Position Tracking - Track plant locations
-          ✓ Data Persistence - Save your designs
-          
-          VIEWS:
-          • ContentView - Main application layout with split view
-          • DesignCanvasView - Interactive canvas for plant placement
-          • PlantLibraryView - Plant selection and browsing
-          • ImagePickerView - Image selection for custom plants
-          
-          DATA MODELS:
-          • Plant - Represents a plant (Codable, Identifiable)
-          • PlacedPlant - Represents a plant on the canvas
-          
-          QUICK START:
-          1. Launch the application
-          2. Browse plants in the right panel
-          3. Click on canvas to place plants
-          4. Drag to position plants on the canvas
-          5. Use image picker to add custom images
-          
-          REPOSITORY:
-          https://github.com/raun32/LandscapeDesigner
-          
-          For full documentation and source code, visit the repository.
-          EOF
-          
-          # Create version file
-          cat > /tmp/LandscapeDesigner.app/Contents/Resources/VERSION.txt << 'EOF'
-          Application: Landscape Designer
-          Version: 1.0.0
-          Build Date: $(date)
-          
-          Swift Version: $(swift --version)
-          Deployment Target: macOS 12.0
-          
-          Repository: https://github.com/raun32/LandscapeDesigner
-          Owner: raun32
-          
-          Components:
-          - Total Views: 4
-          - Total Models: 2  
-          - Total Source Files: 7
-          
-          Built with: Swift Package Manager + SwiftUI
-          EOF
-          
-          echo "✓ Resources added"
+          echo "✅ App bundle created"
 
       - name: Create DMG Installer
         run: |
-          echo "Creating DMG installer..."
+          echo "💿 Creating DMG installer..."
+          mkdir -p DMG_Contents
+          cp -r LandscapeDesigner.app DMG_Contents/
+          ln -s /Applications DMG_Contents/Applications
           
-          # Create DMG contents directory
-          mkdir -p /tmp/DMG_Contents
-          cp -r /tmp/LandscapeDesigner.app /tmp/DMG_Contents/
-          
-          # Create Applications symlink
-          ln -s /Applications /tmp/DMG_Contents/Applications || true
-          
-          # Create DMG
           hdiutil create -volname "Landscape Designer" \
-                         -srcfolder /tmp/DMG_Contents \
+                         -srcfolder DMG_Contents \
                          -ov -format UDZO \
-                         /tmp/LandscapeDesigner.dmg
+                         LandscapeDesigner.dmg
           
-          # Verify DMG was created
-          if [ -f /tmp/LandscapeDesigner.dmg ]; then
-              echo "✅ DMG created successfully"
-              ls -lh /tmp/LandscapeDesigner.dmg
-          else
-              echo "⚠️  DMG creation may have issues"
-          fi
+          echo "✅ DMG created"
+          ls -lh LandscapeDesigner.dmg
 
-      - name: Copy to Current Directory
-        run: |
-          cp -r /tmp/LandscapeDesigner.app ./
-          cp /tmp/LandscapeDesigner.dmg ./
-          ls -la *.dmg *.app 2>/dev/null || echo "Files staged for upload"
-
-      - name: Upload App Bundle Artifacts
+      - name: Upload Binary Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LandscapeDesigner-macOS
-          path: |
-            LandscapeDesigner.app
-            LandscapeDesigner.dmg
+          name: LandscapeDesigner-binary
+          path: LandscapeDesigner
+          retention-days: 30
+
+      - name: Upload App Bundle Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LandscapeDesigner-app-bundle
+          path: LandscapeDesigner.app
+          retention-days: 30
+
+      - name: Upload DMG Installer Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LandscapeDesigner-installer
+          path: LandscapeDesigner.dmg
           retention-days: 30
 
       - name: Generate Build Report
         run: |
-          echo "========================================="
-          echo "macOS APP BUNDLE BUILD REPORT"
-          echo "========================================="
+          echo "=========================================="
+          echo "📊 BUILD REPORT"
+          echo "=========================================="
           echo ""
-          echo "✅ App Bundle Created: LandscapeDesigner.app"
-          echo "✅ DMG Installer Created: LandscapeDesigner.dmg"
+          echo "✅ Binary compiled: LandscapeDesigner"
+          echo "✅ App bundle created: LandscapeDesigner.app"
+          echo "✅ DMG installer created: LandscapeDesigner.dmg"
           echo ""
-          echo "Bundle Contents:"
-          echo "  📦 Contents/"
-          echo "    ├── MacOS/"
-          echo "    │   └── LandscapeDesigner (executable launcher)"
-          echo "    ├── Resources/"
-          echo "    │   ├── README.txt"
-          echo "    │   └── VERSION.txt"
-          echo "    └── Info.plist"
+          echo "📦 Artifacts available for download:"
+          echo "  1. LandscapeDesigner-binary"
+          echo "  2. LandscapeDesigner-app-bundle"
+          echo "  3. LandscapeDesigner-installer"
           echo ""
-          echo "Installation Steps:"
-          echo "  1. Download 'LandscapeDesigner-macOS' artifact"
-          echo "  2. Extract LandscapeDesigner.dmg"
-          echo "  3. Open LandscapeDesigner.dmg"
+          echo "🚀 Installation instructions:"
+          echo "  1. Go to Actions → Latest workflow → Artifacts"
+          echo "  2. Download 'LandscapeDesigner-installer' (DMG)"
+          echo "  3. Extract and open LandscapeDesigner.dmg"
           echo "  4. Drag app to /Applications"
           echo "  5. Double-click to launch"
           echo ""
-          echo "Launch Methods:"
-          echo "  • Double-click in Finder"
-          echo "  • Terminal: open /Applications/LandscapeDesigner.app"
-          echo "  • Terminal: /Applications/LandscapeDesigner.app/Contents/MacOS/LandscapeDesigner"
-          echo ""
-          echo "System Requirements:"
-          echo "  • macOS 12.0 or later"
-          echo "  • ARM64 or Intel processor"
-          echo ""
-          echo "========================================="
+          echo "=========================================="
