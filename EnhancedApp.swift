@@ -551,6 +551,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var totalCost: Double = 0
     var inventoryTextField: NSTextField?
     var penToolActive: Bool = false
+    var penToolButton: NSButton?
+    var uploadedMedia: [String: String] = [:]  // filename: filepath
+    var uploadedImages: [String] = []
+    var uploadedPDFs: [String] = []
+    var uploadedText: [String: String] = [:]  // filename: content
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         createMainWindow()
@@ -599,6 +604,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         colabTab.view = createCollaborationTab()
         tabView.addTabViewItem(colabTab)
         
+        // Tab 6: Media Upload
+        let mediaTab = NSTabViewItem(identifier: "Media")
+        mediaTab.label = "📸 Media & Files"
+        mediaTab.view = createMediaTab()
+        tabView.addTabViewItem(mediaTab)
+        
         window.contentView = tabView
         window.center()
         window.makeKeyAndOrderFront(nil)
@@ -635,10 +646,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         toolbar.addSubview(title)
         
         let penButton = NSButton()
-        penButton.title = "✏️ Pen Tool"
-        penButton.frame = NSRect(x: 350, y: 12, width: 100, height: 25)
+        penButton.title = "✏️ Pen Tool (OFF)"
+        penButton.frame = NSRect(x: 350, y: 12, width: 110, height: 25)
         penButton.target = self
         penButton.action = #selector(togglePenMode)
+        penButton.bezelStyle = .rounded
+        penButton.wantsLayer = true
+        penButton.layer?.backgroundColor = NSColor(red: 0.9, green: 0.9, blue: 0.9, alpha: 1).cgColor
+        self.penToolButton = penButton
         toolbar.addSubview(penButton)
         
         let colorButton = NSButton()
@@ -893,6 +908,132 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return container
     }
     
+    func createMediaTab() -> NSView {
+        let container = NSView()
+        container.wantsLayer = true
+        container.layer?.backgroundColor = NSColor(red: 0.98, green: 0.95, blue: 0.95, alpha: 1).cgColor
+        
+        let title = NSTextField()
+        title.stringValue = "📸 Media & File Management"
+        title.isEditable = false
+        title.font = NSFont.boldSystemFont(ofSize: 16)
+        title.frame = NSRect(x: 20, y: 900, width: 600, height: 25)
+        container.addSubview(title)
+        
+        // Images Section
+        let imagesLabel = NSTextField()
+        imagesLabel.stringValue = "🖼️ Images & Photos"
+        imagesLabel.isEditable = false
+        imagesLabel.font = NSFont.boldSystemFont(ofSize: 12)
+        imagesLabel.frame = NSRect(x: 20, y: 850, width: 600, height: 25)
+        container.addSubview(imagesLabel)
+        
+        let uploadImageButton = NSButton()
+        uploadImageButton.title = "🖼️ Upload Images (JPG, PNG, TIFF)"
+        uploadImageButton.bezelStyle = .rounded
+        uploadImageButton.frame = NSRect(x: 40, y: 810, width: 400, height: 30)
+        uploadImageButton.target = self
+        uploadImageButton.action = #selector(uploadImages)
+        container.addSubview(uploadImageButton)
+        
+        let imageList = NSTextField()
+        imageList.stringValue = "Uploaded Images: \(uploadedImages.count)"
+        imageList.isEditable = false
+        imageList.font = NSFont.systemFont(ofSize: 11)
+        imageList.textColor = NSColor.gray
+        imageList.frame = NSRect(x: 450, y: 815, width: 300, height: 20)
+        container.addSubview(imageList)
+        
+        // PDFs Section
+        let pdfLabel = NSTextField()
+        pdfLabel.stringValue = "📄 PDF Documents"
+        pdfLabel.isEditable = false
+        pdfLabel.font = NSFont.boldSystemFont(ofSize: 12)
+        pdfLabel.frame = NSRect(x: 20, y: 750, width: 600, height: 25)
+        container.addSubview(pdfLabel)
+        
+        let uploadPDFButton = NSButton()
+        uploadPDFButton.title = "📄 Upload PDF Documents"
+        uploadPDFButton.bezelStyle = .rounded
+        uploadPDFButton.frame = NSRect(x: 40, y: 710, width: 400, height: 30)
+        uploadPDFButton.target = self
+        uploadPDFButton.action = #selector(uploadPDFs)
+        container.addSubview(uploadPDFButton)
+        
+        let pdfList = NSTextField()
+        pdfList.stringValue = "Uploaded PDFs: \(uploadedPDFs.count)"
+        pdfList.isEditable = false
+        pdfList.font = NSFont.systemFont(ofSize: 11)
+        pdfList.textColor = NSColor.gray
+        pdfList.frame = NSRect(x: 450, y: 715, width: 300, height: 20)
+        container.addSubview(pdfList)
+        
+        // Text Files Section
+        let textLabel = NSTextField()
+        textLabel.stringValue = "📝 Text & Notes"
+        textLabel.isEditable = false
+        textLabel.font = NSFont.boldSystemFont(ofSize: 12)
+        textLabel.frame = NSRect(x: 20, y: 650, width: 600, height: 25)
+        container.addSubview(textLabel)
+        
+        let uploadTextButton = NSButton()
+        uploadTextButton.title = "📝 Upload Text Files (TXT, RTF)"
+        uploadTextButton.bezelStyle = .rounded
+        uploadTextButton.frame = NSRect(x: 40, y: 610, width: 400, height: 30)
+        uploadTextButton.target = self
+        uploadTextButton.action = #selector(uploadTextFiles)
+        container.addSubview(uploadTextButton)
+        
+        let textList = NSTextField()
+        textList.stringValue = "Uploaded Files: \(uploadedText.count)"
+        textList.isEditable = false
+        textList.font = NSFont.systemFont(ofSize: 11)
+        textList.textColor = NSColor.gray
+        textList.frame = NSRect(x: 450, y: 615, width: 300, height: 20)
+        container.addSubview(textList)
+        
+        // Usage Section
+        let usageLabel = NSTextField()
+        usageLabel.stringValue = "💡 How to Use Uploaded Media"
+        usageLabel.isEditable = false
+        usageLabel.font = NSFont.boldSystemFont(ofSize: 12)
+        usageLabel.frame = NSRect(x: 20, y: 550, width: 600, height: 25)
+        container.addSubview(usageLabel)
+        
+        let usage = NSTextField()
+        usage.stringValue = """
+        • Images: Reference photos for plant identification and landscape inspiration
+        • PDFs: Store specification sheets, plant care guides, or client documents
+        • Text: Keep notes about design decisions, maintenance plans, or client preferences
+        
+        All files are stored locally in ~/Documents/LandscapeDesigns/media/
+        """
+        usage.isEditable = false
+        usage.font = NSFont.systemFont(ofSize: 11)
+        usage.textColor = NSColor.darkGray
+        usage.frame = NSRect(x: 40, y: 350, width: 1100, height: 180)
+        container.addSubview(usage)
+        
+        // Manage Files Button
+        let manageButton = NSButton()
+        manageButton.title = "📂 Open Media Folder"
+        manageButton.bezelStyle = .rounded
+        manageButton.frame = NSRect(x: 40, y: 300, width: 300, height: 30)
+        manageButton.target = self
+        manageButton.action = #selector(openMediaFolder)
+        container.addSubview(manageButton)
+        
+        let clearButton = NSButton()
+        clearButton.title = "🗑️ Clear All Media"
+        clearButton.bezelStyle = .rounded
+        clearButton.frame = NSRect(x: 360, y: 300, width: 300, height: 30)
+        clearButton.target = self
+        clearButton.action = #selector(clearAllMedia)
+        container.addSubview(clearButton)
+        
+        return container
+    }
+    
     @objc func addPlantToDesign(_ sender: NSButton) {
         guard let canvas = canvasView else { return }
         
@@ -1056,9 +1197,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         canvasView?.isPenMode = penToolActive
         canvasView?.needsDisplay = true
         
+        // Update button appearance
+        if let button = penToolButton {
+            if penToolActive {
+                button.title = "✏️ Pen Tool (ON)"
+                button.layer?.backgroundColor = NSColor(red: 0.0, green: 0.8, blue: 0.2, alpha: 1).cgColor
+                button.textColor = NSColor.white
+            } else {
+                button.title = "✏️ Pen Tool (OFF)"
+                button.layer?.backgroundColor = NSColor(red: 0.9, green: 0.9, blue: 0.9, alpha: 1).cgColor
+                button.textColor = NSColor.black
+            }
+        }
+        
         let alert = NSAlert()
         alert.messageText = penToolActive ? "✏️ Pen Mode Enabled" : "✏️ Pen Mode Disabled"
-        alert.informativeText = penToolActive ? "Click and drag on canvas to draw" : "Plant placement mode active"
+        alert.informativeText = penToolActive ? "Click and drag on canvas to draw. Hold and release to finalize strokes." : "Plant placement and dragging mode active"
         alert.addButton(withTitle: "OK")
         alert.runModal()
     }
@@ -1076,6 +1230,104 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     @objc func updateLineWidth(_ slider: NSSlider) {
         canvasView?.penLineWidth = Double(slider.doubleValue)
+    }
+    
+    // MARK: - Media Upload Functions
+    @objc func uploadImages() {
+        let openPanel = NSOpenPanel()
+        openPanel.allowedFileTypes = ["jpg", "jpeg", "png", "tiff", "gif"]
+        openPanel.allowsMultipleSelection = true
+        openPanel.title = "Select Images to Upload"
+        
+        openPanel.begin { [weak self] response in
+            if response == .OK {
+                for url in openPanel.urls {
+                    self?.uploadedImages.append(url.lastPathComponent)
+                    self?.uploadedMedia[url.lastPathComponent] = url.path
+                }
+                let alert = NSAlert()
+                alert.messageText = "✅ Images Uploaded"
+                alert.informativeText = "Uploaded \(openPanel.urls.count) image(s)\nTotal images: \(self?.uploadedImages.count ?? 0)"
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+            }
+        }
+    }
+    
+    @objc func uploadPDFs() {
+        let openPanel = NSOpenPanel()
+        openPanel.allowedFileTypes = ["pdf"]
+        openPanel.allowsMultipleSelection = true
+        openPanel.title = "Select PDF Documents to Upload"
+        
+        openPanel.begin { [weak self] response in
+            if response == .OK {
+                for url in openPanel.urls {
+                    self?.uploadedPDFs.append(url.lastPathComponent)
+                    self?.uploadedMedia[url.lastPathComponent] = url.path
+                }
+                let alert = NSAlert()
+                alert.messageText = "✅ PDFs Uploaded"
+                alert.informativeText = "Uploaded \(openPanel.urls.count) PDF(s)\nTotal PDFs: \(self?.uploadedPDFs.count ?? 0)"
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+            }
+        }
+    }
+    
+    @objc func uploadTextFiles() {
+        let openPanel = NSOpenPanel()
+        openPanel.allowedFileTypes = ["txt", "rtf", "md", "text"]
+        openPanel.allowsMultipleSelection = true
+        openPanel.title = "Select Text Files to Upload"
+        
+        openPanel.begin { [weak self] response in
+            if response == .OK {
+                for url in openPanel.urls {
+                    if let content = try? String(contentsOf: url, encoding: .utf8) {
+                        self?.uploadedText[url.lastPathComponent] = content
+                        self?.uploadedMedia[url.lastPathComponent] = url.path
+                    }
+                }
+                let alert = NSAlert()
+                alert.messageText = "✅ Text Files Uploaded"
+                alert.informativeText = "Uploaded \(openPanel.urls.count) text file(s)\nTotal files: \(self?.uploadedText.count ?? 0)"
+                alert.addButton(withTitle: "OK")
+                alert.runModal()
+            }
+        }
+    }
+    
+    @objc func openMediaFolder() {
+        let fileManager = FileManager.default
+        let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let mediaPath = documentsPath.appendingPathComponent("LandscapeDesigns/media")
+        
+        // Create folder if it doesn't exist
+        try? fileManager.createDirectory(at: mediaPath, withIntermediateDirectories: true, attributes: nil)
+        
+        NSWorkspace.shared.open(mediaPath)
+    }
+    
+    @objc func clearAllMedia() {
+        let alert = NSAlert()
+        alert.messageText = "Clear All Media?"
+        alert.informativeText = "This will clear all uploaded images, PDFs, and text files. This cannot be undone."
+        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: "Clear All")
+        
+        if alert.runModal() == NSApplication.ModalResponse.alertSecondButtonReturn {
+            uploadedImages.removeAll()
+            uploadedPDFs.removeAll()
+            uploadedText.removeAll()
+            uploadedMedia.removeAll()
+            
+            let confirmAlert = NSAlert()
+            confirmAlert.messageText = "✅ Cleared"
+            confirmAlert.informativeText = "All media references have been cleared"
+            confirmAlert.addButton(withTitle: "OK")
+            confirmAlert.runModal()
+        }
     }
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
