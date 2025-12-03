@@ -38,12 +38,20 @@ struct PlacedPlant: Codable, Identifiable {
     }
 }
 
+struct DrawingPath: Codable {
+    let points: [CGPoint]
+    let color: String // hex color
+    let lineWidth: Double
+    let isSmoothed: Bool
+}
+
 struct LandscapeDesign: Codable {
     let id: String
     var name: String
     let width: Double   // in feet
     let height: Double  // in feet
     var plants: [PlacedPlant] = []
+    var drawingPaths: [DrawingPath] = []
     var notes: String = ""
     var createdDate: String
     var modifiedDate: String
@@ -151,13 +159,18 @@ class PlantLibrary {
     }
 }
 
-// MARK: - 3D Canvas View
+// MARK: - 3D Canvas View with Drawing
 class Canvas3DView: NSView {
     var placedPlants: [PlacedPlant] = []
+    var drawingPaths: [DrawingPath] = []
+    var currentDrawingPath: [CGPoint] = []
     var designWidth: Double = 40
     var designHeight: Double = 30
     var is3DMode: Bool = false
     var cameraAngle: Double = 45
+    var isPenMode: Bool = false
+    var penColor: NSColor = NSColor.black
+    var penLineWidth: Double = 2.0
     
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
@@ -168,6 +181,48 @@ class Canvas3DView: NSView {
             draw3D()
         } else {
             draw2D()
+        }
+        
+        // Draw existing paths
+        drawStoredPaths()
+        
+        // Draw current path being drawn
+        if !currentDrawingPath.isEmpty && isPenMode {
+            penColor.setStroke()
+            let path = NSBezierPath()
+            path.lineWidth = penLineWidth
+            path.lineCapStyle = .round
+            path.lineJoinStyle = .round
+            
+            for (index, point) in currentDrawingPath.enumerated() {
+                if index == 0 {
+                    path.move(to: point)
+                } else {
+                    path.line(to: point)
+                }
+            }
+            path.stroke()
+        }
+    }
+    
+    func drawStoredPaths() {
+        for drawingPath in drawingPaths {
+            if let color = NSColor(hex: drawingPath.color) {
+                color.setStroke()
+                let path = NSBezierPath()
+                path.lineWidth = drawingPath.lineWidth
+                path.lineCapStyle = .round
+                path.lineJoinStyle = .round
+                
+                for (index, point) in drawingPath.points.enumerated() {
+                    if index == 0 {
+                        path.move(to: point)
+                    } else {
+                        path.line(to: point)
+                    }
+                }
+                path.stroke()
+            }
         }
     }
     
@@ -202,7 +257,7 @@ class Canvas3DView: NSView {
         }
         
         let scaleText = NSAttributedString(
-            string: "2D View: \(Int(designWidth))ft × \(Int(designHeight))ft",
+            string: "2D View: \(Int(designWidth))ft × \(Int(designHeight))ft" + (isPenMode ? " [✏️ Pen Mode]" : ""),
             attributes: [.font: NSFont.systemFont(ofSize: 10)]
         )
         scaleText.draw(at: NSPoint(x: 10, y: bounds.height - 20))
@@ -212,10 +267,8 @@ class Canvas3DView: NSView {
         NSColor(red: 0.8, green: 0.9, blue: 1.0, alpha: 1).setFill()
         bounds.fill()
         
-        // Simple isometric-style 3D visualization
         NSColor.black.setStroke()
         
-        // Draw perspective grid
         let cellWidth = bounds.width / 8
         let cellHeight = bounds.height / 8
         
@@ -241,7 +294,7 @@ class Canvas3DView: NSView {
         }
         
         let scaleText = NSAttributedString(
-            string: "3D View (Isometric) - Camera: \(Int(cameraAngle))°",
+            string: "3D View (Isometric) - Camera: \(Int(cameraAngle))°" + (isPenMode ? " [✏️ Pen Mode]" : ""),
             attributes: [.font: NSFont.systemFont(ofSize: 10)]
         )
         scaleText.draw(at: NSPoint(x: 10, y: bounds.height - 20))
@@ -312,8 +365,61 @@ class Canvas3DView: NSView {
     }
     
     override func mouseDown(with event: NSEvent) {
-        let location = convert(event.locationInWindow, from: nil)
-        addPlant(PlantLibrary.shared.plants[0], at: location)
+        if isPenMode {
+            let location = convert(event.locationInWindow, from: nil)
+            currentDrawingPath = [location]
+        }
+    }
+    
+    override func mouseDragged(with event: NSEvent) {
+        if isPenMode && !currentDrawingPath.isEmpty {
+            let location = convert(event.locationInWindow, from: nil)
+            currentDrawingPath.append(location)
+            needsDisplay = true
+        }
+    }
+    
+    override func mouseUp(with event: NSEvent) {
+        if isPenMode && !currentDrawingPath.isEmpty {
+            let drawingPath = DrawingPath(
+                points: currentDrawingPath,
+                color: penColor.hexString,
+                lineWidth: penLineWidth,
+                isSmoothed: false
+            )
+            drawingPaths.append(drawingPath)
+            currentDrawingPath.removeAll()
+            needsDisplay = true
+        }
+    }
+}
+
+// MARK: - NSColor Extensions
+extension NSColor {
+    var hexString: String {
+        guard let rgbColor = self.usingColorSpace(.sRGB) else {
+            return "#000000"
+        }
+        let red = Int(rgbColor.redComponent * 255)
+        let green = Int(rgbColor.greenComponent * 255)
+        let blue = Int(rgbColor.blueComponent * 255)
+        return String(format: "#%02X%02X%02X", red, green, blue)
+    }
+    
+    convenience init?(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
+        guard hex.count == 6 else { return nil }
+        
+        let scanner = Scanner(string: hex)
+        var rgbValue: UInt64 = 0
+        
+        guard scanner.scanHexInt64(&rgbValue) else { return nil }
+        
+        let red = CGFloat((rgbValue >> 16) & 0xFF) / 255.0
+        let green = CGFloat((rgbValue >> 8) & 0xFF) / 255.0
+        let blue = CGFloat(rgbValue & 0xFF) / 255.0
+        
+        self.init(red: red, green: green, blue: blue, alpha: 1.0)
     }
 }
 
@@ -325,6 +431,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var currentPlacedPlants: [PlacedPlant] = []
     var totalCost: Double = 0
     var inventoryTextField: NSTextField?
+    var penToolActive: Bool = false
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         createMainWindow()
@@ -407,6 +514,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         title.font = NSFont.boldSystemFont(ofSize: 14)
         title.frame = NSRect(x: 20, y: 15, width: 300, height: 25)
         toolbar.addSubview(title)
+        
+        let penButton = NSButton()
+        penButton.title = "✏️ Pen Tool"
+        penButton.frame = NSRect(x: 350, y: 12, width: 100, height: 25)
+        penButton.target = self
+        penButton.action = #selector(togglePenMode)
+        toolbar.addSubview(penButton)
+        
+        let colorButton = NSButton()
+        colorButton.title = "🎨 Color"
+        colorButton.frame = NSRect(x: 470, y: 12, width: 80, height: 25)
+        colorButton.target = self
+        colorButton.action = #selector(showColorPicker)
+        toolbar.addSubview(colorButton)
+        
+        let lineWidthLabel = NSTextField()
+        lineWidthLabel.stringValue = "Line:"
+        lineWidthLabel.isEditable = false
+        lineWidthLabel.font = NSFont.systemFont(ofSize: 12)
+        lineWidthLabel.frame = NSRect(x: 570, y: 15, width: 40, height: 25)
+        toolbar.addSubview(lineWidthLabel)
+        
+        let lineWidthSlider = NSSlider(value: 2.0, minValue: 0.5, maxValue: 10.0, target: self, action: #selector(updateLineWidth(_:)))
+        lineWidthSlider.frame = NSRect(x: 610, y: 15, width: 150, height: 20)
+        toolbar.addSubview(lineWidthSlider)
         
         let clearButton = NSButton()
         clearButton.title = "Clear"
@@ -798,6 +930,33 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         
         inventoryTextField?.stringValue = text
+    }
+    
+    @objc func togglePenMode() {
+        penToolActive = !penToolActive
+        canvasView?.isPenMode = penToolActive
+        canvasView?.needsDisplay = true
+        
+        let alert = NSAlert()
+        alert.messageText = penToolActive ? "✏️ Pen Mode Enabled" : "✏️ Pen Mode Disabled"
+        alert.informativeText = penToolActive ? "Click and drag on canvas to draw" : "Plant placement mode active"
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+    
+    @objc func showColorPicker() {
+        let colorPanel = NSColorPanel.shared
+        colorPanel.setTarget(self)
+        colorPanel.setAction(#selector(colorDidChange(_:)))
+        colorPanel.makeKeyAndOrderFront(nil)
+    }
+    
+    @objc func colorDidChange(_ sender: NSColorPanel) {
+        canvasView?.penColor = sender.color
+    }
+    
+    @objc func updateLineWidth(_ slider: NSSlider) {
+        canvasView?.penLineWidth = Double(slider.doubleValue)
     }
     
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
