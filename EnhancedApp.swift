@@ -120,33 +120,103 @@ class PlantLibrary {
     static let shared = PlantLibrary()
     
     let plants: [Plant] = [
-        // Trees
-        Plant(name: "Oak Tree", category: "Trees", spacing: 30, height: 60, cost: 150),
-        Plant(name: "Maple Tree", category: "Trees", spacing: 25, height: 50, cost: 120),
-        Plant(name: "Pine Tree", category: "Trees", spacing: 20, height: 80, cost: 100),
-        Plant(name: "Birch Tree", category: "Trees", spacing: 20, height: 40, cost: 90),
-        Plant(name: "Willow Tree", category: "Trees", spacing: 35, height: 50, cost: 110),
+        // TREES - Deciduous
+        Plant(name: "Oak Tree (White)", category: "Trees - Deciduous", spacing: 30, height: 60, cost: 150),
+        Plant(name: "Oak Tree (Red)", category: "Trees - Deciduous", spacing: 30, height: 55, cost: 145),
+        Plant(name: "Maple Tree (Sugar)", category: "Trees - Deciduous", spacing: 25, height: 50, cost: 120),
+        Plant(name: "Maple Tree (Red)", category: "Trees - Deciduous", spacing: 25, height: 45, cost: 115),
+        Plant(name: "Birch Tree (White)", category: "Trees - Deciduous", spacing: 20, height: 40, cost: 90),
+        Plant(name: "Birch Tree (River)", category: "Trees - Deciduous", spacing: 20, height: 45, cost: 95),
+        Plant(name: "Willow Tree (Weeping)", category: "Trees - Deciduous", spacing: 35, height: 50, cost: 110),
+        Plant(name: "Ash Tree", category: "Trees - Deciduous", spacing: 25, height: 55, cost: 125),
+        Plant(name: "Elm Tree", category: "Trees - Deciduous", spacing: 30, height: 60, cost: 140),
+        Plant(name: "Beech Tree", category: "Trees - Deciduous", spacing: 28, height: 50, cost: 130),
+        Plant(name: "Poplar Tree", category: "Trees - Deciduous", spacing: 20, height: 70, cost: 100),
+        Plant(name: "Linden Tree", category: "Trees - Deciduous", spacing: 25, height: 50, cost: 120),
         
-        // Shrubs
-        Plant(name: "Boxwood", category: "Shrubs", spacing: 3, height: 4, cost: 25),
-        Plant(name: "Hydrangea", category: "Shrubs", spacing: 4, height: 6, cost: 35),
-        Plant(name: "Lilac", category: "Shrubs", spacing: 5, height: 8, cost: 40),
-        Plant(name: "Azalea", category: "Shrubs", spacing: 3, height: 4, cost: 30),
-        Plant(name: "Juniper", category: "Shrubs", spacing: 4, height: 5, cost: 28),
+        // TREES - Evergreen/Conifer
+        Plant(name: "Pine Tree (White)", category: "Trees - Evergreen", spacing: 20, height: 80, cost: 100),
+        Plant(name: "Pine Tree (Scotch)", category: "Trees - Evergreen", spacing: 20, height: 60, cost: 95),
+        Plant(name: "Pine Tree (Loblolly)", category: "Trees - Evergreen", spacing: 20, height: 90, cost: 105),
+        Plant(name: "Spruce Tree (Colorado)", category: "Trees - Evergreen", spacing: 20, height: 70, cost: 110),
+        Plant(name: "Spruce Tree (Norway)", category: "Trees - Evergreen", spacing: 20, height: 80, cost: 115),
+        Plant(name: "Fir Tree (Douglas)", category: "Trees - Evergreen", spacing: 20, height: 85, cost: 120),
+        Plant(name: "Hemlock Tree", category: "Trees - Evergreen", spacing: 18, height: 70, cost: 105),
+        Plant(name: "Arborvitae (Green)", category: "Trees - Evergreen", spacing: 10, height: 40, cost: 45),
+        Plant(name: "Cypress Tree (Leyland)", category: "Trees - Evergreen", spacing: 15, height: 60, cost: 75),
         
-        // Flowers
-        Plant(name: "Rose", category: "Flowers", spacing: 2, height: 3, cost: 15),
-        Plant(name: "Tulip", category: "Flowers", spacing: 1, height: 2, cost: 5),
-        Plant(name: "Daisy", category: "Flowers", spacing: 1.5, height: 2.5, cost: 8),
-        Plant(name: "Sunflower", category: "Flowers", spacing: 2, height: 6, cost: 10),
-        Plant(name: "Lavender", category: "Flowers", spacing: 2, height: 3, cost: 12),
-        Plant(name: "Peony", category: "Flowers", spacing: 3, height: 3, cost: 20),
-        Plant(name: "Hibiscus", category: "Flowers", spacing: 4, height: 8, cost: 45),
+        // SHRUBS - Deciduous
+        Plant(name: "Boxwood (American)", category: "Shrubs - Deciduous", spacing: 3, height: 4, cost: 25),
+        Plant(name: "Hydrangea (Panicle)", category: "Shrubs - Deciduous", spacing: 4, height: 6, cost: 35),
+        Plant(name: "Hydrangea (Bigleaf)", category: "Shrubs - Deciduous", spacing: 4, height: 5, cost: 30),
+        Plant(name: "Lilac (Common)", category: "Shrubs - Deciduous", spacing: 5, height: 8, cost: 40),
+        Plant(name: "Lilac (Japanese)", category: "Shrubs - Deciduous", spacing: 5, height: 10, cost: 45),
+        Plant(name: "Azalea (Pink)", category: "Shrubs - Deciduous", spacing: 3, height: 4, cost: 30),
+        Plant(name: "Azalea (Red)", category: "Shrubs - Deciduous", spacing: 3, height: 4, cost: 30),
+        Plant(name: "Rhododendron (Purple)", category: "Shrubs - Deciduous", spacing: 4, height: 5, cost: 40),
+        Plant(name: "Viburnum (American)", category: "Shrubs - Deciduous", spacing: 4, height: 6, cost: 35),
+        Plant(name: "Weigela (Red)", category: "Shrubs - Deciduous", spacing: 4, height: 5, cost: 28),
+        Plant(name: "Forsythia (Golden)", category: "Shrubs - Deciduous", spacing: 5, height: 6, cost: 32),
+        Plant(name: "Butterfly Bush", category: "Shrubs - Deciduous", spacing: 5, height: 8, cost: 38),
         
-        // Ground Cover
-        Plant(name: "Ivy", category: "Ground Cover", spacing: 1, height: 0.5, cost: 6),
+        // SHRUBS - Evergreen
+        Plant(name: "Juniper (Blue Star)", category: "Shrubs - Evergreen", spacing: 4, height: 5, cost: 28),
+        Plant(name: "Juniper (Skyrocket)", category: "Shrubs - Evergreen", spacing: 2, height: 15, cost: 35),
+        Plant(name: "Holly (American)", category: "Shrubs - Evergreen", spacing: 4, height: 6, cost: 40),
+        Plant(name: "Yew (Japanese)", category: "Shrubs - Evergreen", spacing: 3, height: 4, cost: 30),
+        Plant(name: "Privet (Green)", category: "Shrubs - Evergreen", spacing: 2, height: 6, cost: 20),
+        Plant(name: "Euonymus (Green)", category: "Shrubs - Evergreen", spacing: 3, height: 4, cost: 25),
+        
+        // PERENNIALS & FLOWERS
+        Plant(name: "Rose (Hybrid Tea)", category: "Perennials & Flowers", spacing: 2, height: 3, cost: 15),
+        Plant(name: "Rose (Floribunda)", category: "Perennials & Flowers", spacing: 2, height: 3, cost: 12),
+        Plant(name: "Tulip (Red)", category: "Perennials & Flowers", spacing: 1, height: 2, cost: 5),
+        Plant(name: "Tulip (Yellow)", category: "Perennials & Flowers", spacing: 1, height: 2, cost: 5),
+        Plant(name: "Daisy (Shasta)", category: "Perennials & Flowers", spacing: 1.5, height: 2.5, cost: 8),
+        Plant(name: "Sunflower (Tall)", category: "Perennials & Flowers", spacing: 2, height: 6, cost: 10),
+        Plant(name: "Lavender (Purple)", category: "Perennials & Flowers", spacing: 2, height: 3, cost: 12),
+        Plant(name: "Peony (Pink)", category: "Perennials & Flowers", spacing: 3, height: 3, cost: 20),
+        Plant(name: "Hibiscus (Red)", category: "Perennials & Flowers", spacing: 4, height: 8, cost: 45),
+        Plant(name: "Daylily (Orange)", category: "Perennials & Flowers", spacing: 2, height: 2.5, cost: 10),
+        Plant(name: "Coneflower (Purple)", category: "Perennials & Flowers", spacing: 1.5, height: 3, cost: 10),
+        Plant(name: "Black-eyed Susan", category: "Perennials & Flowers", spacing: 1.5, height: 2, cost: 8),
+        Plant(name: "Aster (Fall)", category: "Perennials & Flowers", spacing: 2, height: 3, cost: 9),
+        Plant(name: "Hosta (Blue)", category: "Perennials & Flowers", spacing: 2, height: 2, cost: 12),
+        Plant(name: "Sedum (Autumn Joy)", category: "Perennials & Flowers", spacing: 1.5, height: 2, cost: 10),
+        
+        // GROUND COVER
+        Plant(name: "Ivy (English)", category: "Ground Cover", spacing: 1, height: 0.5, cost: 6),
+        Plant(name: "Ivy (Boston)", category: "Ground Cover", spacing: 1, height: 0.5, cost: 7),
         Plant(name: "Moss Phlox", category: "Ground Cover", spacing: 1, height: 0.3, cost: 8),
-        Plant(name: "Sedum", category: "Ground Cover", spacing: 1, height: 0.5, cost: 7),
+        Plant(name: "Creeping Thyme", category: "Ground Cover", spacing: 1, height: 0.25, cost: 8),
+        Plant(name: "Sedum (Dragon Blood)", category: "Ground Cover", spacing: 1, height: 0.5, cost: 7),
+        Plant(name: "Groundcover (Ajuga)", category: "Ground Cover", spacing: 1, height: 0.4, cost: 6),
+        
+        // HARDSCAPE MATERIALS
+        Plant(name: "Mulch (Black)", category: "Hardscape Materials", spacing: 100, height: 0.25, cost: 50),
+        Plant(name: "Mulch (Brown)", category: "Hardscape Materials", spacing: 100, height: 0.25, cost: 50),
+        Plant(name: "River Rock (Small)", category: "Hardscape Materials", spacing: 100, height: 0.1, cost: 75),
+        Plant(name: "River Rock (Large)", category: "Hardscape Materials", spacing: 100, height: 0.15, cost: 100),
+        Plant(name: "Wood Chips (Pine)", category: "Hardscape Materials", spacing: 100, height: 0.25, cost: 60),
+        Plant(name: "Wood Chips (Cedar)", category: "Hardscape Materials", spacing: 100, height: 0.25, cost: 80),
+        Plant(name: "Gravel (Pea)", category: "Hardscape Materials", spacing: 100, height: 0.2, cost: 40),
+        Plant(name: "Gravel (Crushed)", category: "Hardscape Materials", spacing: 100, height: 0.2, cost: 45),
+        Plant(name: "Bark Chips (Shredded)", category: "Hardscape Materials", spacing: 100, height: 0.25, cost: 65),
+        Plant(name: "Sand (Play)", category: "Hardscape Materials", spacing: 100, height: 0.2, cost: 35),
+        Plant(name: "Topsoil", category: "Hardscape Materials", spacing: 100, height: 0.25, cost: 40),
+        Plant(name: "Compost (Organic)", category: "Hardscape Materials", spacing: 100, height: 0.25, cost: 55),
+        
+        // ORNAMENTAL GRASSES
+        Plant(name: "Fountain Grass", category: "Ornamental Grasses", spacing: 3, height: 4, cost: 15),
+        Plant(name: "Ornamental Grass (Miscanthus)", category: "Ornamental Grasses", spacing: 3, height: 5, cost: 18),
+        Plant(name: "Pampas Grass", category: "Ornamental Grasses", spacing: 4, height: 8, cost: 22),
+        Plant(name: "Feather Reed Grass", category: "Ornamental Grasses", spacing: 3, height: 4, cost: 16),
+        
+        // VINES & CLIMBERS
+        Plant(name: "Clematis (Purple)", category: "Vines & Climbers", spacing: 2, height: 8, cost: 25),
+        Plant(name: "Honeysuckle (Gold)", category: "Vines & Climbers", spacing: 3, height: 10, cost: 20),
+        Plant(name: "Grape Vine", category: "Vines & Climbers", spacing: 4, height: 12, cost: 30),
+        Plant(name: "Climbing Hydrangea", category: "Vines & Climbers", spacing: 3, height: 8, cost: 35),
     ]
     
     func plantsByCategory(_ category: String) -> [Plant] {
@@ -159,7 +229,7 @@ class PlantLibrary {
     }
 }
 
-// MARK: - 3D Canvas View with Drawing
+// MARK: - 3D Canvas View with Drawing & Dragging
 class Canvas3DView: NSView {
     var placedPlants: [PlacedPlant] = []
     var drawingPaths: [DrawingPath] = []
@@ -171,6 +241,10 @@ class Canvas3DView: NSView {
     var isPenMode: Bool = false
     var penColor: NSColor = NSColor.black
     var penLineWidth: Double = 2.0
+    var selectedPlantIndex: Int? = nil
+    var dragStartPoint: NSPoint = NSPoint.zero
+    var dragOffsetX: Double = 0
+    var dragOffsetY: Double = 0
     
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
@@ -312,8 +386,15 @@ class Canvas3DView: NSView {
         let circle = NSBezierPath(ovalIn: NSRect(x: x - size/2, y: y - size/2, width: size, height: size))
         circle.fill()
         
-        NSColor(red: 0.0, green: 0.5, blue: 0.0, alpha: 1.0).setStroke()
-        circle.lineWidth = 2
+        // Highlight selected plants
+        let isSelected = selectedPlantIndex.map { placedPlants[$0].id == plant.id } ?? false
+        if isSelected {
+            NSColor.red.setStroke()
+            circle.lineWidth = 4
+        } else {
+            NSColor(red: 0.0, green: 0.5, blue: 0.0, alpha: 1.0).setStroke()
+            circle.lineWidth = 2
+        }
         circle.stroke()
         
         let label = NSAttributedString(
@@ -365,16 +446,51 @@ class Canvas3DView: NSView {
     }
     
     override func mouseDown(with event: NSEvent) {
+        let location = convert(event.locationInWindow, from: nil)
+        
         if isPenMode {
-            let location = convert(event.locationInWindow, from: nil)
             currentDrawingPath = [location]
+        } else {
+            // Check if clicked on a plant
+            let scaleX = bounds.width / designWidth
+            let scaleY = bounds.height / designHeight
+            
+            for (index, plant) in placedPlants.enumerated() {
+                let x = plant.x * scaleX
+                let y = bounds.height - (plant.y * scaleY)
+                let size: CGFloat = 20
+                
+                let plantRect = NSRect(x: x - size/2, y: y - size/2, width: size, height: size)
+                if plantRect.contains(location) {
+                    selectedPlantIndex = index
+                    dragStartPoint = location
+                    dragOffsetX = plant.x
+                    dragOffsetY = plant.y
+                    needsDisplay = true
+                    return
+                }
+            }
+            selectedPlantIndex = nil
         }
     }
     
     override func mouseDragged(with event: NSEvent) {
+        let location = convert(event.locationInWindow, from: nil)
+        
         if isPenMode && !currentDrawingPath.isEmpty {
-            let location = convert(event.locationInWindow, from: nil)
             currentDrawingPath.append(location)
+            needsDisplay = true
+        } else if let index = selectedPlantIndex, !isPenMode {
+            // Update plant position while dragging
+            let scaleX = bounds.width / designWidth
+            let scaleY = bounds.height / designHeight
+            
+            let deltaX = Double(location.x - dragStartPoint.x) / scaleX
+            let deltaY = Double(dragStartPoint.y - location.y) / scaleY
+            
+            placedPlants[index].x = dragOffsetX + deltaX
+            placedPlants[index].y = dragOffsetY + deltaY
+            
             needsDisplay = true
         }
     }
@@ -389,6 +505,9 @@ class Canvas3DView: NSView {
             )
             drawingPaths.append(drawingPath)
             currentDrawingPath.removeAll()
+            needsDisplay = true
+        } else {
+            selectedPlantIndex = nil
             needsDisplay = true
         }
     }
