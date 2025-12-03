@@ -16,8 +16,8 @@ struct Plant: Codable, Identifiable {
     let seasonality: String  // Spring, Summer, Fall, Winter, Year-round
     let climateZones: [String]  // USDA Hardiness Zones
     let careInstructions: String
-    let isUserContribution: Bool = false
-    let contributedBy: String? = nil
+    var isUserContribution: Bool = false
+    var contributedBy: String? = nil
     
     init(id: String = UUID().uuidString, name: String, category: String, spacing: Double, height: Double, cost: Double, 
          color: String = "Green", sunRequirement: String = "Full Sun", waterNeeds: String = "Medium",
