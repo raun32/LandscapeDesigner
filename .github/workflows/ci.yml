@@ -25,7 +25,7 @@ jobs:
           echo "🔨 Building Landscape Designer..."
           swiftc -target x86_64-apple-macosx10.15 \
                   EnhancedApp.swift \
-                  -o LandscapeDesigner \
+                  -o LDApp \
                   -framework AppKit \
                   -framework Foundation
           echo "✅ Build successful!"
@@ -33,8 +33,8 @@ jobs:
       - name: Verify Binary
         run: |
           echo "📦 Binary verification:"
-          file LandscapeDesigner
-          ls -lh LandscapeDesigner
+          file LDApp
+          ls -lh LDApp
           echo ""
           echo "✅ Binary ready for deployment"
 
@@ -44,7 +44,7 @@ jobs:
           mkdir -p LandscapeDesigner.app/Contents/{MacOS,Resources}
           
           # Copy compiled binary
-          cp LandscapeDesigner LandscapeDesigner.app/Contents/MacOS/
+          cp LDApp LandscapeDesigner.app/Contents/MacOS/LandscapeDesigner
           chmod +x LandscapeDesigner.app/Contents/MacOS/LandscapeDesigner
           
           # Create Info.plist
@@ -98,7 +98,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: LandscapeDesigner-binary
-          path: LandscapeDesigner
+          path: LDApp
           retention-days: 30
 
       - name: Upload App Bundle Artifact
