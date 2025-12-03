@@ -9,35 +9,14 @@ struct Plant: Codable, Identifiable {
     let spacing: Double // in feet
     let height: Double  // in feet
     let cost: Double
-    let color: String  // flower/foliage color
-    let sunRequirement: String  // Full Sun, Part Shade, Shade
-    let waterNeeds: String  // Low, Medium, High
-    let matureSize: String  // Small, Medium, Large
-    let seasonality: String  // Spring, Summer, Fall, Winter, Year-round
-    let climateZones: [String]  // USDA Hardiness Zones
-    let careInstructions: String
-    var isUserContribution: Bool = false
-    var contributedBy: String? = nil
     
-    init(id: String = UUID().uuidString, name: String, category: String, spacing: Double, height: Double, cost: Double, 
-         color: String = "Green", sunRequirement: String = "Full Sun", waterNeeds: String = "Medium",
-         matureSize: String = "Medium", seasonality: String = "Year-round", climateZones: [String] = ["5-9"],
-         careInstructions: String = "Standard care required", isUserContribution: Bool = false, contributedBy: String? = nil) {
+    init(id: String = UUID().uuidString, name: String, category: String, spacing: Double, height: Double, cost: Double) {
         self.id = id
         self.name = name
         self.category = category
         self.spacing = spacing
         self.height = height
         self.cost = cost
-        self.color = color
-        self.sunRequirement = sunRequirement
-        self.waterNeeds = waterNeeds
-        self.matureSize = matureSize
-        self.seasonality = seasonality
-        self.climateZones = climateZones
-        self.careInstructions = careInstructions
-        self.isUserContribution = isUserContribution
-        self.contributedBy = contributedBy
     }
 }
 
@@ -247,77 +226,6 @@ class PlantLibrary {
     func allCategories() -> [String] {
         let categories = Set(plants.map { $0.category })
         return Array(categories).sorted()
-    }
-    
-    // MARK: - Advanced Search & Filter Methods
-    func searchPlants(query: String) -> [Plant] {
-        return plants.filter { plant in
-            plant.name.lowercased().contains(query.lowercased()) ||
-            plant.category.lowercased().contains(query.lowercased())
-        }
-    }
-    
-    func filterByColor(_ color: String) -> [Plant] {
-        return plants.filter { $0.color.lowercased().contains(color.lowercased()) }
-    }
-    
-    func filterBySun(_ requirement: String) -> [Plant] {
-        return plants.filter { $0.sunRequirement == requirement }
-    }
-    
-    func filterByWater(_ needs: String) -> [Plant] {
-        return plants.filter { $0.waterNeeds == needs }
-    }
-    
-    func filterBySize(_ size: String) -> [Plant] {
-        return plants.filter { $0.matureSize == size }
-    }
-    
-    func filterBySeasonality(_ season: String) -> [Plant] {
-        return plants.filter { $0.seasonality.contains(season) }
-    }
-    
-    func filterByClimateZone(_ zone: String) -> [Plant] {
-        return plants.filter { $0.climateZones.contains(zone) }
-    }
-    
-    func filterByPrice(minPrice: Double, maxPrice: Double) -> [Plant] {
-        return plants.filter { $0.cost >= minPrice && $0.cost <= maxPrice }
-    }
-    
-    // Combined filters
-    func advancedFilter(category: String? = nil, color: String? = nil, sun: String? = nil, 
-                        water: String? = nil, size: String? = nil, climateZone: String? = nil) -> [Plant] {
-        var filtered = plants
-        
-        if let category = category, !category.isEmpty {
-            filtered = filtered.filter { $0.category == category }
-        }
-        if let color = color, !color.isEmpty {
-            filtered = filtered.filter { $0.color.lowercased().contains(color.lowercased()) }
-        }
-        if let sun = sun, !sun.isEmpty {
-            filtered = filtered.filter { $0.sunRequirement == sun }
-        }
-        if let water = water, !water.isEmpty {
-            filtered = filtered.filter { $0.waterNeeds == water }
-        }
-        if let size = size, !size.isEmpty {
-            filtered = filtered.filter { $0.matureSize == size }
-        }
-        if let climateZone = climateZone, !climateZone.isEmpty {
-            filtered = filtered.filter { $0.climateZones.contains(climateZone) }
-        }
-        
-        return filtered
-    }
-    
-    func getUserContributions() -> [Plant] {
-        return plants.filter { $0.isUserContribution }
-    }
-    
-    func getRecommendationsForZone(_ zone: String) -> [Plant] {
-        return filterByClimateZone(zone).sorted { $0.cost < $1.cost }
     }
 }
 
@@ -827,118 +735,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         container.wantsLayer = true
         container.layer?.backgroundColor = NSColor(red: 0.98, green: 0.98, blue: 0.98, alpha: 1).cgColor
         
-        // MARK: - Filter Panel
-        let filterPanel = NSView()
-        filterPanel.frame = NSRect(x: 0, y: 800, width: 1500, height: 150)
-        filterPanel.wantsLayer = true
-        filterPanel.layer?.backgroundColor = NSColor(red: 0.92, green: 0.95, blue: 0.98, alpha: 1).cgColor
-        container.addSubview(filterPanel)
-        
-        let filterTitle = NSTextField()
-        filterTitle.stringValue = "🔍 Search & Filter"
-        filterTitle.isEditable = false
-        filterTitle.font = NSFont.boldSystemFont(ofSize: 12)
-        filterTitle.frame = NSRect(x: 15, y: 130, width: 200, height: 20)
-        filterPanel.addSubview(filterTitle)
-        
-        // Search Box
-        let searchLabel = NSTextField()
-        searchLabel.stringValue = "Search:"
-        searchLabel.isEditable = false
-        searchLabel.frame = NSRect(x: 15, y: 105, width: 50, height: 20)
-        filterPanel.addSubview(searchLabel)
-        
-        let searchBox = NSTextField()
-        searchBox.placeholderString = "Plant name or category..."
-        searchBox.frame = NSRect(x: 70, y: 105, width: 200, height: 20)
-        filterPanel.addSubview(searchBox)
-        
-        // Sun Requirement Filter
-        let sunLabel = NSTextField()
-        sunLabel.stringValue = "☀️ Sun:"
-        sunLabel.isEditable = false
-        sunLabel.frame = NSRect(x: 285, y: 105, width: 50, height: 20)
-        filterPanel.addSubview(sunLabel)
-        
-        let sunFilter = NSComboBox()
-        sunFilter.addItems(withObjectValues: ["All", "Full Sun", "Part Shade", "Shade"])
-        sunFilter.frame = NSRect(x: 340, y: 105, width: 120, height: 20)
-        sunFilter.selectItem(at: 0)
-        filterPanel.addSubview(sunFilter)
-        
-        // Water Needs Filter
-        let waterLabel = NSTextField()
-        waterLabel.stringValue = "💧 Water:"
-        waterLabel.isEditable = false
-        waterLabel.frame = NSRect(x: 470, y: 105, width: 60, height: 20)
-        filterPanel.addSubview(waterLabel)
-        
-        let waterFilter = NSComboBox()
-        waterFilter.addItems(withObjectValues: ["All", "Low", "Medium", "High"])
-        waterFilter.frame = NSRect(x: 535, y: 105, width: 110, height: 20)
-        waterFilter.selectItem(at: 0)
-        filterPanel.addSubview(waterFilter)
-        
-        // Size Filter
-        let sizeLabel = NSTextField()
-        sizeLabel.stringValue = "📏 Size:"
-        sizeLabel.isEditable = false
-        sizeLabel.frame = NSRect(x: 655, y: 105, width: 50, height: 20)
-        filterPanel.addSubview(sizeLabel)
-        
-        let sizeFilter = NSComboBox()
-        sizeFilter.addItems(withObjectValues: ["All", "Small", "Medium", "Large"])
-        sizeFilter.frame = NSRect(x: 710, y: 105, width: 110, height: 20)
-        sizeFilter.selectItem(at: 0)
-        filterPanel.addSubview(sizeFilter)
-        
-        // Climate Zone Filter
-        let zoneLabel = NSTextField()
-        zoneLabel.stringValue = "🌍 Zone:"
-        zoneLabel.isEditable = false
-        zoneLabel.frame = NSRect(x: 830, y: 105, width: 50, height: 20)
-        filterPanel.addSubview(zoneLabel)
-        
-        let zoneFilter = NSComboBox()
-        zoneFilter.addItems(withObjectValues: ["All", "3-4", "5-6", "5-9", "6-9", "7-10", "9-11"])
-        zoneFilter.frame = NSRect(x: 885, y: 105, width: 100, height: 20)
-        zoneFilter.selectItem(at: 0)
-        filterPanel.addSubview(zoneFilter)
-        
-        // Apply Filter Button
-        let applyButton = NSButton()
-        applyButton.title = "🔎 Apply Filters"
-        applyButton.bezelStyle = .rounded
-        applyButton.frame = NSRect(x: 1000, y: 103, width: 120, height: 25)
-        filterPanel.addSubview(applyButton)
-        
-        // Reset Button
-        let resetButton = NSButton()
-        resetButton.title = "↺ Reset"
-        resetButton.bezelStyle = .rounded
-        resetButton.frame = NSRect(x: 1135, y: 103, width: 80, height: 25)
-        filterPanel.addSubview(resetButton)
-        
-        // Stats
-        let statsLabel = NSTextField()
-        statsLabel.stringValue = "Total Plants: \(PlantLibrary.shared.plants.count) | Categories: \(PlantLibrary.shared.allCategories().count)"
-        statsLabel.isEditable = false
-        statsLabel.font = NSFont.systemFont(ofSize: 10)
-        statsLabel.textColor = NSColor.gray
-        statsLabel.frame = NSRect(x: 15, y: 80, width: 600, height: 18)
-        filterPanel.addSubview(statsLabel)
-        
-        // Tips
-        let tipsLabel = NSTextField()
-        tipsLabel.stringValue = "💡 Tip: Click any plant to add it to your design. Mix filters for advanced searches."
-        tipsLabel.isEditable = false
-        tipsLabel.font = NSFont.systemFont(ofSize: 9)
-        tipsLabel.textColor = NSColor.darkGray
-        tipsLabel.frame = NSRect(x: 15, y: 55, width: 800, height: 18)
-        filterPanel.addSubview(tipsLabel)
-        
-        // MARK: - Plant List
-        let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 1500, height: 800))
+        let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 1500, height: 950))
         let clipView = NSClipView()
         scrollView.contentView = clipView
         
@@ -946,7 +743,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         clipView.documentView = documentView
         
         let title = NSTextField()
-        title.stringValue = "🌿 Complete Material Library - Click to Add"
+        title.stringValue = "🌿 Complete Plant Library"
         title.isEditable = false
         title.font = NSFont.boldSystemFont(ofSize: 14)
         title.frame = NSRect(x: 20, y: 1750, width: 600, height: 25)
@@ -967,12 +764,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let plants = PlantLibrary.shared.plantsByCategory(category)
             for plant in plants {
                 let plantButton = NSButton()
-                let info = String(format: "🌿 %-30s H:%.0fft S:%.0fft ☀️:%s 💧:%s $%.0f", 
-                                plant.name, plant.height, plant.spacing, 
-                                plant.sunRequirement, plant.waterNeeds, plant.cost)
+                let info = String(format: "🌿 %@ - %.0fft H, %.0fft S - $%.0f", plant.name, plant.height, plant.spacing, plant.cost)
                 plantButton.title = info
                 plantButton.bezelStyle = .rounded
-                plantButton.frame = NSRect(x: 40, y: yPos, width: 1100, height: 28)
+                plantButton.frame = NSRect(x: 40, y: yPos, width: 950, height: 28)
                 plantButton.target = self
                 plantButton.action = #selector(addPlantToDesign(_:))
                 plantButton.tag = PlantLibrary.shared.plants.firstIndex(where: { $0.id == plant.id }) ?? 0
@@ -1442,18 +1237,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         openPanel.allowsMultipleSelection = true
         openPanel.title = "Select Images to Upload"
         
-        openPanel.begin { [weak self] response in
-            if response == .OK {
-                for url in openPanel.urls {
-                    self?.uploadedImages.append(url.lastPathComponent)
-                    self?.uploadedMedia[url.lastPathComponent] = url.path
-                }
-                let alert = NSAlert()
-                alert.messageText = "✅ Images Uploaded"
-                alert.informativeText = "Uploaded \(openPanel.urls.count) image(s)\nTotal images: \(self?.uploadedImages.count ?? 0)"
-                alert.addButton(withTitle: "OK")
-                alert.runModal()
+        if openPanel.runModal() == .OK {
+            for url in openPanel.urls {
+                uploadedImages.append(url.lastPathComponent)
+                uploadedMedia[url.lastPathComponent] = url.path
             }
+            let alert = NSAlert()
+            alert.messageText = "✅ Images Uploaded"
+            alert.informativeText = "Uploaded \(openPanel.urls.count) image(s)\nTotal images: \(uploadedImages.count)"
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
         }
     }
     
@@ -1463,18 +1256,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         openPanel.allowsMultipleSelection = true
         openPanel.title = "Select PDF Documents to Upload"
         
-        openPanel.begin { [weak self] response in
-            if response == .OK {
-                for url in openPanel.urls {
-                    self?.uploadedPDFs.append(url.lastPathComponent)
-                    self?.uploadedMedia[url.lastPathComponent] = url.path
-                }
-                let alert = NSAlert()
-                alert.messageText = "✅ PDFs Uploaded"
-                alert.informativeText = "Uploaded \(openPanel.urls.count) PDF(s)\nTotal PDFs: \(self?.uploadedPDFs.count ?? 0)"
-                alert.addButton(withTitle: "OK")
-                alert.runModal()
+        if openPanel.runModal() == .OK {
+            for url in openPanel.urls {
+                uploadedPDFs.append(url.lastPathComponent)
+                uploadedMedia[url.lastPathComponent] = url.path
             }
+            let alert = NSAlert()
+            alert.messageText = "✅ PDFs Uploaded"
+            alert.informativeText = "Uploaded \(openPanel.urls.count) PDF(s)\nTotal PDFs: \(uploadedPDFs.count)"
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
         }
     }
     
@@ -1484,20 +1275,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         openPanel.allowsMultipleSelection = true
         openPanel.title = "Select Text Files to Upload"
         
-        openPanel.begin { [weak self] response in
-            if response == .OK {
-                for url in openPanel.urls {
-                    if let content = try? String(contentsOf: url, encoding: .utf8) {
-                        self?.uploadedText[url.lastPathComponent] = content
-                        self?.uploadedMedia[url.lastPathComponent] = url.path
-                    }
+        if openPanel.runModal() == .OK {
+            for url in openPanel.urls {
+                if let content = try? String(contentsOf: url, encoding: .utf8) {
+                    uploadedText[url.lastPathComponent] = content
+                    uploadedMedia[url.lastPathComponent] = url.path
                 }
-                let alert = NSAlert()
-                alert.messageText = "✅ Text Files Uploaded"
-                alert.informativeText = "Uploaded \(openPanel.urls.count) text file(s)\nTotal files: \(self?.uploadedText.count ?? 0)"
-                alert.addButton(withTitle: "OK")
-                alert.runModal()
             }
+            let alert = NSAlert()
+            alert.messageText = "✅ Text Files Uploaded"
+            alert.informativeText = "Uploaded \(openPanel.urls.count) text file(s)\nTotal files: \(uploadedText.count)"
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
         }
     }
     
