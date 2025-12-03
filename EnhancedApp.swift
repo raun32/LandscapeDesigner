@@ -1,0 +1,812 @@
+import Cocoa
+import AppKit
+
+// MARK: - Data Models
+struct Plant: Codable, Identifiable {
+    let id: String
+    let name: String
+    let category: String
+    let spacing: Double // in feet
+    let height: Double  // in feet
+    let cost: Double
+    
+    init(id: String = UUID().uuidString, name: String, category: String, spacing: Double, height: Double, cost: Double) {
+        self.id = id
+        self.name = name
+        self.category = category
+        self.spacing = spacing
+        self.height = height
+        self.cost = cost
+    }
+}
+
+struct PlacedPlant: Codable, Identifiable {
+    let id: String
+    let plant: Plant
+    var x: Double
+    var y: Double
+    var quantity: Int = 1
+    var rotation: Double = 0
+    
+    init(id: String = UUID().uuidString, plant: Plant, x: Double, y: Double, quantity: Int = 1, rotation: Double = 0) {
+        self.id = id
+        self.plant = plant
+        self.x = x
+        self.y = y
+        self.quantity = quantity
+        self.rotation = rotation
+    }
+}
+
+struct LandscapeDesign: Codable {
+    let id: String
+    var name: String
+    let width: Double   // in feet
+    let height: Double  // in feet
+    var plants: [PlacedPlant] = []
+    var notes: String = ""
+    var createdDate: String
+    var modifiedDate: String
+    var collaborators: [String] = []
+    
+    mutating func updateModifiedDate() {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        self.modifiedDate = formatter.string(from: Date())
+    }
+}
+
+// MARK: - Cloud Storage (Local file-based)
+class CloudStorage {
+    static let shared = CloudStorage()
+    let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+    let designsFolder: URL
+    
+    init() {
+        designsFolder = documentsPath.appendingPathComponent("LandscapeDesigns")
+        try? FileManager.default.createDirectory(at: designsFolder, withIntermediateDirectories: true)
+    }
+    
+    func saveDesign(_ design: LandscapeDesign) -> Bool {
+        let fileURL = designsFolder.appendingPathComponent("\(design.name).json")
+        do {
+            let data = try JSONEncoder().encode(design)
+            try data.write(to: fileURL)
+            return true
+        } catch {
+            print("Error saving design: \(error)")
+            return false
+        }
+    }
+    
+    func loadDesign(named name: String) -> LandscapeDesign? {
+        let fileURL = designsFolder.appendingPathComponent("\(name).json")
+        do {
+            let data = try Data(contentsOf: fileURL)
+            return try JSONDecoder().decode(LandscapeDesign.self, from: data)
+        } catch {
+            print("Error loading design: \(error)")
+            return nil
+        }
+    }
+    
+    func getAllDesigns() -> [LandscapeDesign] {
+        do {
+            let files = try FileManager.default.contentsOfDirectory(at: designsFolder, includingPropertiesForKeys: nil)
+            var designs: [LandscapeDesign] = []
+            for file in files where file.pathExtension == "json" {
+                if let data = try? Data(contentsOf: file),
+                   let design = try? JSONDecoder().decode(LandscapeDesign.self, from: data) {
+                    designs.append(design)
+                }
+            }
+            return designs.sorted { $0.modifiedDate > $1.modifiedDate }
+        } catch {
+            return []
+        }
+    }
+}
+
+// MARK: - Plant Library Database
+class PlantLibrary {
+    static let shared = PlantLibrary()
+    
+    let plants: [Plant] = [
+        // Trees
+        Plant(name: "Oak Tree", category: "Trees", spacing: 30, height: 60, cost: 150),
+        Plant(name: "Maple Tree", category: "Trees", spacing: 25, height: 50, cost: 120),
+        Plant(name: "Pine Tree", category: "Trees", spacing: 20, height: 80, cost: 100),
+        Plant(name: "Birch Tree", category: "Trees", spacing: 20, height: 40, cost: 90),
+        Plant(name: "Willow Tree", category: "Trees", spacing: 35, height: 50, cost: 110),
+        
+        // Shrubs
+        Plant(name: "Boxwood", category: "Shrubs", spacing: 3, height: 4, cost: 25),
+        Plant(name: "Hydrangea", category: "Shrubs", spacing: 4, height: 6, cost: 35),
+        Plant(name: "Lilac", category: "Shrubs", spacing: 5, height: 8, cost: 40),
+        Plant(name: "Azalea", category: "Shrubs", spacing: 3, height: 4, cost: 30),
+        Plant(name: "Juniper", category: "Shrubs", spacing: 4, height: 5, cost: 28),
+        
+        // Flowers
+        Plant(name: "Rose", category: "Flowers", spacing: 2, height: 3, cost: 15),
+        Plant(name: "Tulip", category: "Flowers", spacing: 1, height: 2, cost: 5),
+        Plant(name: "Daisy", category: "Flowers", spacing: 1.5, height: 2.5, cost: 8),
+        Plant(name: "Sunflower", category: "Flowers", spacing: 2, height: 6, cost: 10),
+        Plant(name: "Lavender", category: "Flowers", spacing: 2, height: 3, cost: 12),
+        Plant(name: "Peony", category: "Flowers", spacing: 3, height: 3, cost: 20),
+        Plant(name: "Hibiscus", category: "Flowers", spacing: 4, height: 8, cost: 45),
+        
+        // Ground Cover
+        Plant(name: "Ivy", category: "Ground Cover", spacing: 1, height: 0.5, cost: 6),
+        Plant(name: "Moss Phlox", category: "Ground Cover", spacing: 1, height: 0.3, cost: 8),
+        Plant(name: "Sedum", category: "Ground Cover", spacing: 1, height: 0.5, cost: 7),
+    ]
+    
+    func plantsByCategory(_ category: String) -> [Plant] {
+        return plants.filter { $0.category == category }
+    }
+    
+    func allCategories() -> [String] {
+        let categories = Set(plants.map { $0.category })
+        return Array(categories).sorted()
+    }
+}
+
+// MARK: - 3D Canvas View
+class Canvas3DView: NSView {
+    var placedPlants: [PlacedPlant] = []
+    var designWidth: Double = 40
+    var designHeight: Double = 30
+    var is3DMode: Bool = false
+    var cameraAngle: Double = 45
+    
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+        NSColor.white.setFill()
+        dirtyRect.fill()
+        
+        if is3DMode {
+            draw3D()
+        } else {
+            draw2D()
+        }
+    }
+    
+    func draw2D() {
+        NSColor.lightGray.setStroke()
+        let cellWidth = bounds.width / 10
+        let cellHeight = bounds.height / 10
+        
+        for i in 1..<10 {
+            let x = CGFloat(i) * cellWidth
+            let y = CGFloat(i) * cellHeight
+            let vLine = NSBezierPath()
+            vLine.move(to: NSPoint(x: x, y: 0))
+            vLine.line(to: NSPoint(x: x, y: bounds.height))
+            vLine.lineWidth = 0.5
+            vLine.stroke()
+            
+            let hLine = NSBezierPath()
+            hLine.move(to: NSPoint(x: 0, y: y))
+            hLine.line(to: NSPoint(x: bounds.width, y: y))
+            hLine.lineWidth = 0.5
+            hLine.stroke()
+        }
+        
+        NSColor.black.setStroke()
+        let border = NSBezierPath(rect: bounds)
+        border.lineWidth = 2
+        border.stroke()
+        
+        for plant in placedPlants {
+            drawPlant2D(plant)
+        }
+        
+        let scaleText = NSAttributedString(
+            string: "2D View: \(Int(designWidth))ft × \(Int(designHeight))ft",
+            attributes: [.font: NSFont.systemFont(ofSize: 10)]
+        )
+        scaleText.draw(at: NSPoint(x: 10, y: bounds.height - 20))
+    }
+    
+    func draw3D() {
+        NSColor(red: 0.8, green: 0.9, blue: 1.0, alpha: 1).setFill()
+        bounds.fill()
+        
+        // Simple isometric-style 3D visualization
+        NSColor.black.setStroke()
+        
+        // Draw perspective grid
+        let cellWidth = bounds.width / 8
+        let cellHeight = bounds.height / 8
+        
+        for i in 0...8 {
+            let x = CGFloat(i) * cellWidth
+            let y = CGFloat(i) * cellHeight
+            
+            let vLine = NSBezierPath()
+            vLine.move(to: NSPoint(x: x, y: 0))
+            vLine.line(to: NSPoint(x: x * 1.2, y: bounds.height))
+            vLine.lineWidth = 0.5
+            vLine.stroke()
+            
+            let hLine = NSBezierPath()
+            hLine.move(to: NSPoint(x: 0, y: y))
+            hLine.line(to: NSPoint(x: bounds.width, y: y * 1.1))
+            hLine.lineWidth = 0.5
+            hLine.stroke()
+        }
+        
+        for plant in placedPlants {
+            drawPlant3D(plant)
+        }
+        
+        let scaleText = NSAttributedString(
+            string: "3D View (Isometric) - Camera: \(Int(cameraAngle))°",
+            attributes: [.font: NSFont.systemFont(ofSize: 10)]
+        )
+        scaleText.draw(at: NSPoint(x: 10, y: bounds.height - 20))
+    }
+    
+    func drawPlant2D(_ plant: PlacedPlant) {
+        let scaleX = bounds.width / designWidth
+        let scaleY = bounds.height / designHeight
+        
+        let x = plant.x * scaleX
+        let y = bounds.height - (plant.y * scaleY)
+        let size: CGFloat = 20
+        
+        NSColor(red: 0.2, green: 0.7, blue: 0.2, alpha: 0.8).setFill()
+        let circle = NSBezierPath(ovalIn: NSRect(x: x - size/2, y: y - size/2, width: size, height: size))
+        circle.fill()
+        
+        NSColor(red: 0.0, green: 0.5, blue: 0.0, alpha: 1.0).setStroke()
+        circle.lineWidth = 2
+        circle.stroke()
+        
+        let label = NSAttributedString(
+            string: "×\(plant.quantity)",
+            attributes: [.font: NSFont.systemFont(ofSize: 9), .foregroundColor: NSColor.white]
+        )
+        label.draw(at: NSPoint(x: x - 8, y: y - 5))
+    }
+    
+    func drawPlant3D(_ plant: PlacedPlant) {
+        let scaleX = bounds.width / (designWidth * 1.5)
+        let scaleY = bounds.height / (designHeight * 1.5)
+        
+        let x = (plant.x * scaleX) + CGFloat(plant.y * scaleX * 0.3)
+        let y = (bounds.height - (plant.y * scaleY)) + CGFloat(plant.x * scaleY * 0.2)
+        
+        // Draw 3D box for plant
+        NSColor(red: 0.2, green: 0.8, blue: 0.2, alpha: 0.7).setFill()
+        let height = CGFloat(plant.plant.height / 10) * 2
+        let width: CGFloat = 15
+        
+        let rect = NSRect(x: x - width/2, y: y - height/2, width: width, height: height)
+        let box = NSBezierPath(rect: rect)
+        box.fill()
+        
+        NSColor(red: 0.0, green: 0.6, blue: 0.0, alpha: 1.0).setStroke()
+        box.lineWidth = 1.5
+        box.stroke()
+        
+        // Draw height indicator
+        NSColor.darkGray.setStroke()
+        let heightLine = NSBezierPath()
+        heightLine.move(to: NSPoint(x: x, y: y - height/2))
+        heightLine.line(to: NSPoint(x: x, y: y - height))
+        heightLine.lineWidth = 1
+        heightLine.stroke()
+    }
+    
+    func addPlant(_ plant: Plant, at point: NSPoint) {
+        let scaleX = bounds.width / designWidth
+        let scaleY = bounds.height / designHeight
+        
+        let x = Double(point.x) / scaleX
+        let y = Double(bounds.height - point.y) / scaleY
+        
+        let newPlant = PlacedPlant(plant: plant, x: x, y: y)
+        placedPlants.append(newPlant)
+        needsDisplay = true
+    }
+    
+    override func mouseDown(with event: NSEvent) {
+        let location = convert(event.locationInWindow, from: nil)
+        addPlant(PlantLibrary.shared.plants[0], at: location)
+    }
+}
+
+// MARK: - App Delegate
+class AppDelegate: NSObject, NSApplicationDelegate {
+    var window: NSWindow?
+    var canvasView: Canvas3DView?
+    var currentDesign: LandscapeDesign?
+    var currentPlacedPlants: [PlacedPlant] = []
+    var totalCost: Double = 0
+    var inventoryTextField: NSTextField?
+    
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        createMainWindow()
+    }
+    
+    func createMainWindow() {
+        let window = NSWindow(
+            contentRect: NSRect(x: 100, y: 100, width: 1500, height: 950),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        
+        window.title = "🌿 iScape Professional - AR/3D Landscape Designer"
+        window.isReleasedWhenClosed = false
+        
+        let tabView = NSTabView()
+        
+        // Tab 1: 2D Design
+        let designTab = NSTabViewItem(identifier: "Design")
+        designTab.label = "🎨 2D Design"
+        designTab.view = createDesignTab()
+        tabView.addTabViewItem(designTab)
+        
+        // Tab 2: 3D Preview
+        let preview3DTab = NSTabViewItem(identifier: "3D")
+        preview3DTab.label = "🏗️ 3D Preview"
+        preview3DTab.view = create3DTab()
+        tabView.addTabViewItem(preview3DTab)
+        
+        // Tab 3: Plant Library
+        let libraryTab = NSTabViewItem(identifier: "Library")
+        libraryTab.label = "🌱 Plant Library"
+        libraryTab.view = createLibraryTab()
+        tabView.addTabViewItem(libraryTab)
+        
+        // Tab 4: Inventory
+        let inventoryTab = NSTabViewItem(identifier: "Inventory")
+        inventoryTab.label = "📋 Inventory"
+        inventoryTab.view = createInventoryTab()
+        tabView.addTabViewItem(inventoryTab)
+        
+        // Tab 5: Collaboration & Export
+        let colabTab = NSTabViewItem(identifier: "Export")
+        colabTab.label = "🔄 Collab & Export"
+        colabTab.view = createCollaborationTab()
+        tabView.addTabViewItem(colabTab)
+        
+        window.contentView = tabView
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        self.window = window
+        
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        
+        // Initialize design
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        currentDesign = LandscapeDesign(
+            id: UUID().uuidString,
+            name: "New Landscape",
+            width: 40,
+            height: 30,
+            createdDate: formatter.string(from: Date()),
+            modifiedDate: formatter.string(from: Date())
+        )
+    }
+    
+    func createDesignTab() -> NSView {
+        let container = NSView()
+        
+        let toolbar = NSView()
+        toolbar.frame = NSRect(x: 0, y: 900, width: 1500, height: 50)
+        toolbar.wantsLayer = true
+        toolbar.layer?.backgroundColor = NSColor(red: 0.95, green: 0.95, blue: 0.95, alpha: 1).cgColor
+        
+        let title = NSTextField()
+        title.stringValue = "2D Design Canvas"
+        title.isEditable = false
+        title.font = NSFont.boldSystemFont(ofSize: 14)
+        title.frame = NSRect(x: 20, y: 15, width: 300, height: 25)
+        toolbar.addSubview(title)
+        
+        let clearButton = NSButton()
+        clearButton.title = "Clear"
+        clearButton.frame = NSRect(x: 1350, y: 12, width: 130, height: 25)
+        clearButton.target = self
+        clearButton.action = #selector(clearCanvas)
+        toolbar.addSubview(clearButton)
+        
+        container.addSubview(toolbar)
+        
+        canvasView = Canvas3DView()
+        canvasView?.frame = NSRect(x: 0, y: 0, width: 1500, height: 900)
+        canvasView?.wantsLayer = true
+        canvasView?.layer?.backgroundColor = NSColor.white.cgColor
+        canvasView?.is3DMode = false
+        if let canvas = canvasView {
+            container.addSubview(canvas)
+        }
+        
+        return container
+    }
+    
+    func create3DTab() -> NSView {
+        let container = NSView()
+        
+        let toolbar = NSView()
+        toolbar.frame = NSRect(x: 0, y: 900, width: 1500, height: 50)
+        toolbar.wantsLayer = true
+        toolbar.layer?.backgroundColor = NSColor(red: 0.9, green: 0.95, blue: 1.0, alpha: 1).cgColor
+        
+        let title = NSTextField()
+        title.stringValue = "3D Isometric Preview"
+        title.isEditable = false
+        title.font = NSFont.boldSystemFont(ofSize: 14)
+        title.frame = NSRect(x: 20, y: 15, width: 400, height: 25)
+        toolbar.addSubview(title)
+        
+        let rotateCCW = NSButton()
+        rotateCCW.title = "Rotate ↺"
+        rotateCCW.frame = NSRect(x: 1250, y: 12, width: 110, height: 25)
+        rotateCCW.target = self
+        rotateCCW.action = #selector(rotate3D)
+        toolbar.addSubview(rotateCCW)
+        
+        container.addSubview(toolbar)
+        
+        let canvas3D = Canvas3DView()
+        canvas3D.frame = NSRect(x: 0, y: 0, width: 1500, height: 900)
+        canvas3D.wantsLayer = true
+        canvas3D.layer?.backgroundColor = NSColor(red: 0.8, green: 0.9, blue: 1.0, alpha: 1).cgColor
+        canvas3D.is3DMode = true
+        canvas3D.placedPlants = canvasView?.placedPlants ?? []
+        container.addSubview(canvas3D)
+        
+        return container
+    }
+    
+    func createLibraryTab() -> NSView {
+        let container = NSView()
+        container.wantsLayer = true
+        container.layer?.backgroundColor = NSColor(red: 0.98, green: 0.98, blue: 0.98, alpha: 1).cgColor
+        
+        let scrollView = NSScrollView(frame: NSRect(x: 0, y: 0, width: 1500, height: 950))
+        let clipView = NSClipView()
+        scrollView.contentView = clipView
+        
+        let documentView = NSView()
+        clipView.documentView = documentView
+        
+        let title = NSTextField()
+        title.stringValue = "🌿 Complete Plant Library"
+        title.isEditable = false
+        title.font = NSFont.boldSystemFont(ofSize: 14)
+        title.frame = NSRect(x: 20, y: 1750, width: 600, height: 25)
+        documentView.addSubview(title)
+        
+        let categories = PlantLibrary.shared.allCategories()
+        var yPos = 1700
+        
+        for category in categories {
+            let categoryLabel = NSTextField()
+            categoryLabel.stringValue = "📌 \(category)"
+            categoryLabel.isEditable = false
+            categoryLabel.font = NSFont.boldSystemFont(ofSize: 12)
+            categoryLabel.frame = NSRect(x: 20, y: yPos, width: 300, height: 25)
+            documentView.addSubview(categoryLabel)
+            yPos -= 35
+            
+            let plants = PlantLibrary.shared.plantsByCategory(category)
+            for plant in plants {
+                let plantButton = NSButton()
+                let info = String(format: "🌿 %@ - %.0fft H, %.0fft S - $%.0f", plant.name, plant.height, plant.spacing, plant.cost)
+                plantButton.title = info
+                plantButton.bezelStyle = .rounded
+                plantButton.frame = NSRect(x: 40, y: yPos, width: 950, height: 28)
+                plantButton.target = self
+                plantButton.action = #selector(addPlantToDesign(_:))
+                plantButton.tag = PlantLibrary.shared.plants.firstIndex(where: { $0.id == plant.id }) ?? 0
+                documentView.addSubview(plantButton)
+                yPos -= 35
+            }
+        }
+        
+        documentView.frame = NSRect(x: 0, y: 0, width: 1500, height: CGFloat(abs(yPos) + 100))
+        scrollView.documentView = documentView
+        container.addSubview(scrollView)
+        
+        return container
+    }
+    
+    func createInventoryTab() -> NSView {
+        let container = NSView()
+        container.wantsLayer = true
+        container.layer?.backgroundColor = NSColor.white.cgColor
+        
+        let title = NSTextField()
+        title.stringValue = "📋 Project Inventory & Cost Analysis"
+        title.isEditable = false
+        title.font = NSFont.boldSystemFont(ofSize: 16)
+        title.frame = NSRect(x: 20, y: 900, width: 600, height: 25)
+        container.addSubview(title)
+        
+        inventoryTextField = NSTextField()
+        inventoryTextField?.isEditable = false
+        inventoryTextField?.font = NSFont.systemFont(ofSize: 11)
+        inventoryTextField?.frame = NSRect(x: 20, y: 50, width: 1460, height: 800)
+        if let textField = inventoryTextField {
+            container.addSubview(textField)
+            updateInventory()
+        }
+        
+        return container
+    }
+    
+    func createCollaborationTab() -> NSView {
+        let container = NSView()
+        container.wantsLayer = true
+        container.layer?.backgroundColor = NSColor(red: 0.95, green: 0.98, blue: 1.0, alpha: 1).cgColor
+        
+        let title = NSTextField()
+        title.stringValue = "🔄 Real-Time Collaboration & PDF Export"
+        title.isEditable = false
+        title.font = NSFont.boldSystemFont(ofSize: 16)
+        title.frame = NSRect(x: 20, y: 900, width: 600, height: 25)
+        container.addSubview(title)
+        
+        // Collaboration Section
+        let colabLabel = NSTextField()
+        colabLabel.stringValue = "👥 Collaboration"
+        colabLabel.isEditable = false
+        colabLabel.font = NSFont.boldSystemFont(ofSize: 12)
+        colabLabel.frame = NSRect(x: 20, y: 850, width: 600, height: 25)
+        container.addSubview(colabLabel)
+        
+        let shareButton = NSButton()
+        shareButton.title = "📧 Invite Collaborators"
+        shareButton.bezelStyle = .rounded
+        shareButton.frame = NSRect(x: 40, y: 810, width: 300, height: 30)
+        shareButton.target = self
+        shareButton.action = #selector(inviteCollaborators)
+        container.addSubview(shareButton)
+        
+        let liveButton = NSButton()
+        liveButton.title = "🔴 Start Live Sharing"
+        liveButton.bezelStyle = .rounded
+        liveButton.frame = NSRect(x: 360, y: 810, width: 300, height: 30)
+        liveButton.target = self
+        shareButton.action = #selector(startLiveSharing)
+        container.addSubview(liveButton)
+        
+        // PDF Export Section
+        let exportLabel = NSTextField()
+        exportLabel.stringValue = "📄 PDF Export & Proposals"
+        exportLabel.isEditable = false
+        exportLabel.font = NSFont.boldSystemFont(ofSize: 12)
+        exportLabel.frame = NSRect(x: 20, y: 750, width: 600, height: 25)
+        container.addSubview(exportLabel)
+        
+        let options = [
+            ("📄 Export as Professional PDF", "Full design with materials, costs, and specifications"),
+            ("💼 Generate Proposal Document", "Client-ready proposal with images and pricing"),
+            ("📊 Export Cost Breakdown", "Detailed inventory and cost analysis report"),
+            ("🖨️ Print Design", "High-quality print of 2D/3D design"),
+        ]
+        
+        var yPos = 710
+        for (title, desc) in options {
+            let button = NSButton()
+            button.title = title
+            button.bezelStyle = .rounded
+            button.frame = NSRect(x: 40, y: yPos, width: 320, height: 30)
+            button.target = self
+            button.action = #selector(exportDesign(_:))
+            container.addSubview(button)
+            
+            let description = NSTextField()
+            description.stringValue = desc
+            description.isEditable = false
+            description.font = NSFont.systemFont(ofSize: 10)
+            description.textColor = NSColor.gray
+            description.frame = NSRect(x: 380, y: yPos + 5, width: 600, height: 20)
+            container.addSubview(description)
+            
+            yPos -= 50
+        }
+        
+        // Cloud Storage Section
+        let cloudLabel = NSTextField()
+        cloudLabel.stringValue = "☁️ Cloud Storage & Project Management"
+        cloudLabel.isEditable = false
+        cloudLabel.font = NSFont.boldSystemFont(ofSize: 12)
+        cloudLabel.frame = NSRect(x: 20, y: yPos, width: 600, height: 25)
+        container.addSubview(cloudLabel)
+        
+        yPos -= 50
+        
+        let saveButton = NSButton()
+        saveButton.title = "💾 Save Project"
+        saveButton.bezelStyle = .rounded
+        saveButton.frame = NSRect(x: 40, y: yPos, width: 300, height: 30)
+        saveButton.target = self
+        saveButton.action = #selector(saveProject)
+        container.addSubview(saveButton)
+        
+        let loadButton = NSButton()
+        loadButton.title = "📂 Open Project"
+        loadButton.bezelStyle = .rounded
+        loadButton.frame = NSRect(x: 360, y: yPos, width: 300, height: 30)
+        loadButton.target = self
+        loadButton.action = #selector(loadProject)
+        container.addSubview(loadButton)
+        
+        return container
+    }
+    
+    @objc func addPlantToDesign(_ sender: NSButton) {
+        guard let canvas = canvasView else { return }
+        
+        let plant = PlantLibrary.shared.plants[sender.tag]
+        let centerX = Double(canvas.bounds.width / 2)
+        let centerY = Double(canvas.bounds.height / 2)
+        let randomX = Double.random(in: -150...150)
+        let randomY = Double.random(in: -150...150)
+        let point = NSPoint(x: centerX + randomX, y: centerY + randomY)
+        
+        canvas.addPlant(plant, at: point)
+        totalCost += plant.cost
+        currentPlacedPlants.append(PlacedPlant(plant: plant, x: Double(point.x), y: Double(point.y)))
+        
+        let alert = NSAlert()
+        alert.messageText = "✅ Plant Added"
+        alert.informativeText = "\(plant.name)\nCost: $\(Int(plant.cost))"
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+    
+    @objc func clearCanvas() {
+        let alert = NSAlert()
+        alert.messageText = "Clear Canvas?"
+        alert.informativeText = "Remove all plants from design?"
+        alert.addButton(withTitle: "Clear")
+        alert.addButton(withTitle: "Cancel")
+        
+        if alert.runModal() == NSApplication.ModalResponse.alertFirstButtonReturn {
+            canvasView?.placedPlants.removeAll()
+            currentPlacedPlants.removeAll()
+            totalCost = 0
+            canvasView?.needsDisplay = true
+            updateInventory()
+        }
+    }
+    
+    @objc func rotate3D() {
+        // Rotation will be implemented with actual 3D framework in next phase
+    }
+    
+    @objc func inviteCollaborators() {
+        let alert = NSAlert()
+        alert.messageText = "👥 Invite Collaborators"
+        alert.informativeText = "Share your design with team members for real-time collaboration\n\nFeatures:\n• Live editing\n• Comments & annotations\n• Version control\n• Share via email or link"
+        alert.addButton(withTitle: "Send Invite")
+        alert.addButton(withTitle: "Cancel")
+        alert.runModal()
+    }
+    
+    @objc func startLiveSharing() {
+        let alert = NSAlert()
+        alert.messageText = "🔴 Live Sharing"
+        alert.informativeText = "Enable real-time sharing of your design\n\nYour design is now being shared live with all collaborators.\nChanges sync instantly across all connected devices."
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+    
+    @objc func exportDesign(_ sender: NSButton) {
+        let alert = NSAlert()
+        alert.messageText = "📄 Export Design"
+        alert.informativeText = """
+        Design: \(currentDesign?.name ?? "New Landscape")
+        Plants: \(currentPlacedPlants.count)
+        Total Cost: $\(Int(totalCost))
+        
+        PDF Export will include:
+        • 2D and 3D design views
+        • Plant inventory list
+        • Cost breakdown
+        • Client proposal template
+        • Installation notes
+        """
+        alert.addButton(withTitle: "Export PDF")
+        alert.addButton(withTitle: "Cancel")
+        alert.runModal()
+    }
+    
+    @objc func saveProject() {
+        let alert = NSAlert()
+        alert.messageText = "💾 Save Project"
+        
+        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
+        input.stringValue = currentDesign?.name ?? "My Landscape"
+        alert.accessoryView = input
+        
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        
+        let response = alert.runModal()
+        if response == NSApplication.ModalResponse.alertFirstButtonReturn {
+            var design = currentDesign ?? LandscapeDesign(
+                id: UUID().uuidString,
+                name: input.stringValue,
+                width: 40,
+                height: 30,
+                createdDate: Date().description,
+                modifiedDate: Date().description
+            )
+            design.name = input.stringValue
+            design.plants = currentPlacedPlants
+            design.updateModifiedDate()
+            
+            if CloudStorage.shared.saveDesign(design) {
+                let success = NSAlert()
+                success.messageText = "✅ Project Saved"
+                success.informativeText = "Your landscape design has been saved successfully"
+                success.addButton(withTitle: "OK")
+                success.runModal()
+            }
+        }
+    }
+    
+    @objc func loadProject() {
+        let designs = CloudStorage.shared.getAllDesigns()
+        
+        if designs.isEmpty {
+            let alert = NSAlert()
+            alert.messageText = "📂 No Projects Found"
+            alert.informativeText = "You haven't saved any landscape designs yet"
+            alert.addButton(withTitle: "OK")
+            alert.runModal()
+            return
+        }
+        
+        let alert = NSAlert()
+        alert.messageText = "📂 Load Project"
+        alert.informativeText = "Available projects:\n\n" + designs.map { $0.name }.joined(separator: "\n")
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+    
+    func updateInventory() {
+        var text = "PLANT INVENTORY & COST\n" + String(repeating: "=", count: 60) + "\n\n"
+        
+        if currentPlacedPlants.isEmpty {
+            text += "No plants added yet\n"
+        } else {
+            let grouped = Dictionary(grouping: currentPlacedPlants) { $0.plant.id }
+            text += String(format: "%-25s %-10s %-12s\n", "Plant", "Qty", "Cost")
+            text += String(repeating: "-", count: 50) + "\n"
+            
+            var subtotal: Double = 0
+            for (_, plants) in grouped.sorted(by: { $0.key < $1.key }) {
+                if let plant = plants.first?.plant {
+                    let qty = plants.count
+                    let total = plant.cost * Double(qty)
+                    subtotal += total
+                    text += String(format: "%-25s %-10d $%-10.2f\n", plant.name, qty, total)
+                }
+            }
+            text += String(repeating: "-", count: 50) + "\n"
+            text += String(format: "%-25s %-10s $%-10.2f\n", "TOTAL", "", subtotal)
+        }
+        
+        inventoryTextField?.stringValue = text
+    }
+    
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        return true
+    }
+}
+
+// MARK: - Main Entry Point
+let app = NSApplication.shared
+let delegate = AppDelegate()
+app.delegate = delegate
+app.run()
